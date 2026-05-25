@@ -1,0 +1,59 @@
+# Default scoring parameters for the market analysis matrix.
+# Edits via UI persist in localStorage; "Export to YAML" promotes them here.
+# After changing this file, the UI shows "Defaults changed — reset to refresh".
+#
+# Owner: MartinoKeedian
+# All weights and toggles documented in README.md → Scoring.
+
+version: 1
+defaults_locked_at: "2026-05-25"
+
+impact:
+  mode_options: [full, subscription_only, implementation_only]
+  default_mode: full
+  subscription_horizon_years: 3
+
+  # Map raw USD impact to the 1–10 scatter axis.
+  # log: log10(usd+1) normalized to 1–10 — compresses outliers (default).
+  # linear: usd/max(usd) × 10 — large profiles crush small ones visually.
+  # quantile: rank-based — distributes profiles uniformly across the axis.
+  normalization:
+    method: log
+    floor: 1
+    ceiling: 10
+
+feasibility:
+  scale: 10                          # all inputs are 1–10
+  weights:                           # must sum to 1.0; the UI enforces this
+    need_perception: 0.30
+    hw_gap: 0.25
+    similar_clients_exist: 0.20
+    bms_penetration_effect: 0.10
+    sustainment_upside: 0.15
+
+  # BMS penetration effect changes sign depending on the revenue mode.
+  bms_penetration_effect:
+    by_mode:
+      subscription_only: positive    # high BMS → easier service entry
+      implementation_only: negative  # high BMS → less room for new impl
+      full: mixed                    # weighted by impl/sub revenue split
+  hw_gap:
+    invert: true                     # high gap → low feasibility
+
+countries_filter:
+  default: all
+  aggregation: sum                   # sum | max — how to combine across countries
+
+display:
+  quadrant_thresholds:
+    impact: 5.5
+    feasibility: 5.5
+  point_size:
+    mode: uniform                    # uniform (default) | scaled_by_sites
+  show_kp_badge: true                # mark profiles that exist in KP
+
+  quadrant_labels:
+    high_impact_high_feas: "Go now"
+    high_impact_low_feas:  "Build to win"
+    low_impact_high_feas:  "Quick wins"
+    low_impact_low_feas:   "Park"

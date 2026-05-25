@@ -1,0 +1,24 @@
+# Countries in scope for market analysis.
+# Adding a country here requires:
+#   1. Add the country code under by_country: in every data/profiles/*.yml
+#   2. Update countries_filter.aggregation logic if needed
+#
+# Owner: MartinoKeedian
+
+version: 1
+countries:
+  - code: CL
+    display_name: "Chile"
+    currency: USD                    # we report everything in USD for comparability
+    timezone: "America/Santiago"
+    notes: "Smallest market, sales cycles shorter."
+  - code: MX
+    display_name: "Mexico"
+    currency: USD
+    timezone: "America/Mexico_City"
+    notes: "Mid-size; concentrated chains."
+  - code: US
+    display_name: "United States"
+    currency: USD
+    timezone: "America/New_York"
+    notes: "Largest market, longest cycles, highest tickets."

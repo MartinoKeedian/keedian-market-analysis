@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Keedian — Market & Customer Profile Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/styles.css">
+<link rel="stylesheet" href="./assets/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="./index.html" class="brand">
+      <img src="./assets/keedian-logo.png" alt="Keedian" class="brand-logo">
+      <span class="brand-divider"></span>
+      <span class="brand-context">Market Analysis · Internal</span>
+    </a>
+    <div class="topbar-meta">
+      <a href="./parameters.html">Parameters →</a>
+      <span class="brand-divider"></span>
+      <a href="https://roiams.github.io/KeedianProductization/" target="_blank" rel="noopener">Productization ↗</a>
+    </div>
+  </div>
+</header>
+
+<main class="kma-main">
+  <header class="page-head">
+    <h1>Segments Prioritization Matrix</h1>
+    <p class="lead">Impact × Feasibility across all candidate customer profiles. Click a point to drill down. Edit scoring weights in <a href="./parameters.html">Parameters</a>.</p>
+  </header>
+
+  <section class="filter-bar">
+    <label>Country
+      <select id="country-filter">
+        <option value="all" selected>All (sum)</option>
+        <option value="CL">Chile</option>
+        <option value="MX">Mexico</option>
+        <option value="US">United States</option>
+      </select>
+    </label>
+    <label>Mode
+      <select id="mode-filter">
+        <option value="full" selected>Full (impl + sub)</option>
+        <option value="subscription_only">Subscription only</option>
+        <option value="implementation_only">Implementation only</option>
+      </select>
+    </label>
+    <span id="status-msg" class="status-msg"></span>
+  </section>
+
+  <section class="matrix-wrap">
+    <svg id="matrix-svg" role="img" aria-label="Impact vs Feasibility scatter"></svg>
+    <div id="matrix-legend" class="matrix-legend"></div>
+  </section>
+
+  <section class="quadrant-summary" id="quadrant-summary"></section>
+</main>
+
+<div class="footer">
+  Market Analysis · Internal · single-owner repo · <a href="https://github.com/MartinoKeedian/keedian-market-analysis" target="_blank" rel="noopener">source</a>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<script type="module" src="./assets/matrix.js"></script>
+</body>
+</html>

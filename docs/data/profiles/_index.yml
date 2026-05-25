@@ -1,0 +1,28 @@
+# Master list of profile IDs. The app loads profiles by iterating this list.
+# When you add or remove a profile, update this file. The validator checks
+# that every id here resolves to a profiles/<id>.yml file and vice versa.
+
+version: 1
+profiles:
+  - grocery
+  - cstore
+  - cstore_fuel
+  - foodservice
+  - big_box
+  - small_retail
+  - offices
+  - bank_branches
+  - pharmacy
+  - hotels
+  - distribution
+  - malls
+  - universities
+  - hospitals_public
+  - clinics_private
+  - coworks
+  - gyms
+  - cinemas
+  - convention
+  - customer_service_branches
+  - spas_beauty
+  - data_centers

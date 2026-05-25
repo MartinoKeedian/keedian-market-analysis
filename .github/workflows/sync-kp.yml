@@ -1,0 +1,56 @@
+name: sync-kp
+
+# Mirror KeedianProductization data + design assets into this repo so the
+# Pages site (public) can read them without needing a token in the browser.
+# Required secret: KP_MIRROR_TOKEN — a fine-grained PAT with read access to
+# roiams/KeedianProductization (contents:read is enough).
+
+on:
+  schedule:
+    - cron: '17 7 * * *'        # daily at 07:17 UTC
+  workflow_dispatch:            # manual trigger from Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch segments.yml from KP
+        env:
+          GH_TOKEN: ${{ secrets.KP_MIRROR_TOKEN }}
+        run: |
+          mkdir -p docs/data/_kp-mirror
+          gh api repos/roiams/KeedianProductization/contents/data/segments.yml \
+            --jq '.content' | base64 -d > docs/data/_kp-mirror/segments.yml
+
+      - name: Fetch styles.css from KP
+        env:
+          GH_TOKEN: ${{ secrets.KP_MIRROR_TOKEN }}
+        run: |
+          gh api repos/roiams/KeedianProductization/contents/docs/shared/styles.css \
+            --jq '.content' | base64 -d > docs/assets/styles.css
+
+      - name: Fetch logos from KP
+        env:
+          GH_TOKEN: ${{ secrets.KP_MIRROR_TOKEN }}
+        run: |
+          gh api repos/roiams/KeedianProductization/contents/docs/shared/keedian-logo.png \
+            --jq '.content' | base64 -d > docs/assets/keedian-logo.png
+          gh api repos/roiams/KeedianProductization/contents/docs/shared/keedian-logo-white.png \
+            --jq '.content' | base64 -d > docs/assets/keedian-logo-white.png
+
+      - name: Commit if changed
+        run: |
+          git config user.name "kma-mirror-bot"
+          git config user.email "noreply@keedian.com"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add docs/data/_kp-mirror/ docs/assets/styles.css docs/assets/keedian-logo*.png
+            git commit -m "chore: sync KP mirror ($(date -u +%Y-%m-%d))"
+            git push
+          else
+            echo "No changes from KP."
+          fi

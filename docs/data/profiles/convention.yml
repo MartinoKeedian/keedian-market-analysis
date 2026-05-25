@@ -1,0 +1,57 @@
+# Profile template — copy this file to create a new profile.
+# Filename = <id>.yml, where <id> is snake_case and unique.
+#
+# The inherited_cache block is auto-populated by .github/workflows/sync-kp.yml
+# when kp_segment_id is set. Do not edit inherited_cache by hand.
+#
+# All market_analysis fields are the source of truth here; KP does not see them.
+
+id: convention
+display_name: "Convention Centers"
+kp_segment_id: null                     # set to a key in KP segments.yml to enable mirror; null otherwise
+
+inherited_cache:
+  source: null                          # "kp:segments.yml#<id>" once mirror runs
+  _synced_at: null
+  # populated by sync-kp.yml:
+  # blurb, reference_customer, status, products_developed, differences
+
+market_analysis:
+  typical_site_sqft:
+    low: null
+    high: null
+    nominal: null
+
+  market_concentration:
+    value: null                         # fragmented | mixed | concentrated
+    notes: ""
+
+  bms_penetration:
+    value: null                         # 1–10
+    notes: ""
+
+  pain_points: []                       # short list, max 5
+
+  by_country:
+    CL:
+      sites:           { low: null, high: null, nominal: null }
+      implementation:  { addressable_pct: null, avg_ticket_usd: null }
+      subscription:    { addressable_pct: null, arpu_monthly_usd: null }
+    MX:
+      sites:           { low: null, high: null, nominal: null }
+      implementation:  { addressable_pct: null, avg_ticket_usd: null }
+      subscription:    { addressable_pct: null, arpu_monthly_usd: null }
+    US:
+      sites:           { low: null, high: null, nominal: null }
+      implementation:  { addressable_pct: null, avg_ticket_usd: null }
+      subscription:    { addressable_pct: null, arpu_monthly_usd: null }
+
+  feasibility_inputs:                   # 1–10 each
+    need_perception: null
+    delivery_capacity:
+      hw_gap: null
+      similar_clients_exist: null
+      bms_penetration_effect: null
+      sustainment_upside: null
+
+  validation_status: {}                 # field_path → validated | pending
