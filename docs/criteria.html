@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Keedian — Scoring Criteria Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/styles.css">
+<link rel="stylesheet" href="./assets/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="./index.html" class="brand">
+      <img src="./assets/keedian-logo.png" alt="Keedian" class="brand-logo">
+      <span class="brand-divider"></span>
+      <span class="brand-context">Market Analysis · Criteria</span>
+    </a>
+    <div class="topbar-meta">
+      <a href="./index.html">← Back to matrix</a>
+      <span class="brand-divider"></span>
+      <a href="./parameters.html">Parameters →</a>
+    </div>
+  </div>
+</header>
+
+<main class="kma-main">
+  <header class="page-head">
+    <h1>Scoring Criteria Reference</h1>
+    <p class="lead">What each axis, weight, and toggle means. Edit weights in <a href="./parameters.html">Parameters</a>; the values live in <code>docs/data/scoring.yml</code>.</p>
+  </header>
+
+  <section class="criteria-section">
+    <h2>Impact (X axis)</h2>
+    <p>Impact is calculated, not assigned. For each profile, country, and mode:</p>
+    <pre class="formula">implementation_revenue_USD = sites × impl_addressable_pct × impl_avg_ticket_USD
+subscription_revenue_USD   = sites × sub_addressable_pct  × ARPU_monthly_USD × 12 × horizon_years
+total_impact_USD           = combination depending on selected mode</pre>
+    <p>The 1–10 axis is derived via the selected normalization:</p>
+    <table class="criteria-table">
+      <thead><tr><th>Method</th><th>What it does</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>quantile</code></td>
+          <td>Rank-based: spreads profiles uniformly across 1–10.</td>
+          <td>Default. Best for visual separation when profiles vary by orders of magnitude.</td>
+        </tr>
+        <tr>
+          <td><code>log</code></td>
+          <td>log₁₀ scaling. Preserves "how much bigger" without crushing small profiles.</td>
+          <td>When you want a sense of magnitude in the axis, not just order.</td>
+        </tr>
+        <tr>
+          <td><code>linear</code></td>
+          <td>Raw scaling vs the max.</td>
+          <td>Avoid unless your profiles are within one order of magnitude. Outliers crush everything.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="criteria-section">
+    <h2>Feasibility (Y axis)</h2>
+    <p>Feasibility is a weighted composite of five 1–10 inputs. Default weights:</p>
+    <table class="criteria-table">
+      <thead><tr><th>Input</th><th>Weight</th><th>What 1 means</th><th>What 10 means</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Need perception</strong></td>
+          <td>0.30</td>
+          <td>Profile not aware of / not open to buying.</td>
+          <td>Profile actively shopping for this.</td>
+          <td>The biggest single driver. Initial values came from XLSX Attractiveness Score × 2.</td>
+        </tr>
+        <tr>
+          <td><strong>HW gap</strong></td>
+          <td>0.25</td>
+          <td>No hardware development needed — our existing kit covers it.</td>
+          <td>Major hardware development needed before we can serve.</td>
+          <td>Inverted in scoring: high gap → low feasibility.</td>
+        </tr>
+        <tr>
+          <td><strong>Similar clients exist</strong></td>
+          <td>0.20</td>
+          <td>No references. Cold start.</td>
+          <td>Multiple referenceable customers in this profile.</td>
+          <td>Sales motion accelerator. Strong for Grocery (Chedraui), Cstore (7-Eleven), Foodservice (Outback).</td>
+        </tr>
+        <tr>
+          <td><strong>BMS penetration effect</strong></td>
+          <td>0.10</td>
+          <td>No existing BMS in this profile.</td>
+          <td>High BMS penetration.</td>
+          <td>Sign depends on mode — see below.</td>
+        </tr>
+        <tr>
+          <td><strong>Sustainment upside</strong></td>
+          <td>0.15</td>
+          <td>No legacy BMS to upgrade.</td>
+          <td>Large installed base of aging BMS that needs replacement.</td>
+          <td>Captures the recurring upgrade / sustainment opportunity beyond the new install.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="muted small">Weights must sum to 1.0. The UI enforces this. Edit in <a href="./parameters.html">Parameters</a>.</p>
+  </section>
+
+  <section class="criteria-section">
+    <h2>BMS penetration — why the sign depends on mode</h2>
+    <p>The same BMS penetration value can be a tailwind or a headwind depending on what you're selling:</p>
+    <table class="criteria-table">
+      <thead><tr><th>Mode</th><th>Sign</th><th>Reasoning</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>subscription_only</code></td>
+          <td><span class="badge status-published">positive</span></td>
+          <td>If the market is already instrumented, our recurring service can plug in fast. High BMS → easier service entry.</td>
+        </tr>
+        <tr>
+          <td><code>implementation_only</code></td>
+          <td><span class="badge status-in_progress">negative</span></td>
+          <td>If the market is already instrumented, there's less room to sell a new implementation. High BMS → smaller addressable.</td>
+        </tr>
+        <tr>
+          <td><code>full</code></td>
+          <td><span class="badge status-non_kp">mixed</span></td>
+          <td>The two effects partially cancel. Weighted by the impl/sub revenue split inside the profile.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="criteria-section">
+    <h2>Quadrants</h2>
+    <table class="criteria-table">
+      <thead><tr><th>Quadrant</th><th>What it means</th><th>Suggested action</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Go now</strong> (high impact, high feasibility)</td>
+          <td>Big market we can address with current capabilities.</td>
+          <td>Prioritize go-to-market motion. Build playbooks. Allocate sellers.</td>
+        </tr>
+        <tr>
+          <td><strong>Build to win</strong> (high impact, low feasibility)</td>
+          <td>Big market we can't fully address yet.</td>
+          <td>Invest in the missing capability (HW, references, productization).</td>
+        </tr>
+        <tr>
+          <td><strong>Quick wins</strong> (low impact, high feasibility)</td>
+          <td>We can win here, but the market is small.</td>
+          <td>Pursue only if the references unlock bigger markets, or if cost-to-serve is very low.</td>
+        </tr>
+        <tr>
+          <td><strong>Park</strong> (low impact, low feasibility)</td>
+          <td>Small and hard.</td>
+          <td>Deprioritize. Revisit when capabilities change.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="muted small">The quadrant divider is the median of the visible data when <code>quadrant_thresholds.mode</code> is <code>median</code> (default). Switch to <code>manual</code> in <code>scoring.yml</code> to use fixed thresholds.</p>
+  </section>
+
+  <section class="criteria-section">
+    <h2>Modes (revenue filter)</h2>
+    <table class="criteria-table">
+      <thead><tr><th>Mode</th><th>What's counted in Impact</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td><code>full</code></td><td>Implementation + subscription over the configured horizon (default 3 years).</td><td>Default. Strategic ranking.</td></tr>
+        <tr><td><code>subscription_only</code></td><td>Recurring revenue only. Implementation is ignored.</td><td>When evaluating recurring-revenue priority.</td></tr>
+        <tr><td><code>implementation_only</code></td><td>One-shot implementation revenue only. Subscription is ignored.</td><td>When evaluating immediate cash-impact priority.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="criteria-section">
+    <h2>Axis fit and quadrant thresholds</h2>
+    <p>By default, the matrix axes zoom into the actual data range (with a small padding) so profiles aren't bunched into a corner. The quadrant divider is the median of the visible data. Both behaviors are configurable in <code>scoring.yml</code> under <code>display.axis_fit</code> and <code>display.quadrant_thresholds</code>.</p>
+  </section>
+
+  <section class="criteria-section">
+    <h2>Validation status</h2>
+    <p>Every profile YAML carries a <code>validation_status</code> block listing which sections are still <code>preliminary</code> vs <code>validated</code>. When you've reviewed a profile's data and approve it, remove the <code>preliminary: true</code> flag at the top of the YAML and update the validation_status entries.</p>
+  </section>
+</main>
+
+<div class="footer">
+  Criteria reference · edit values in <code>docs/data/scoring.yml</code> · <a href="./index.html">back to matrix</a>
+</div>
+
+</body>
+</html>

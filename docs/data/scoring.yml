@@ -14,11 +14,11 @@ impact:
   subscription_horizon_years: 3
 
   # Map raw USD impact to the 1–10 scatter axis.
-  # log: log10(usd+1) normalized to 1–10 — compresses outliers (default).
-  # linear: usd/max(usd) × 10 — large profiles crush small ones visually.
-  # quantile: rank-based — distributes profiles uniformly across the axis.
+  # quantile (default): rank-based → uniform spread, every profile visible separately.
+  # log: log10(usd+1) normalized to 1–10 — compresses outliers, keeps magnitude info.
+  # linear: usd/max(usd) × 10 — outliers compress everything else.
   normalization:
-    method: log
+    method: quantile
     floor: 1
     ceiling: 10
 
@@ -45,7 +45,12 @@ countries_filter:
   aggregation: sum                   # sum | max — how to combine across countries
 
 display:
+  axis_fit:
+    mode: auto                       # auto: zoom into the data range. manual: full 1–10.
+    padding: 0.5                     # margin around min/max when auto
   quadrant_thresholds:
+    mode: median                     # median: split at the data median (recommended).
+                                     # manual: use the impact/feasibility values below.
     impact: 5.5
     feasibility: 5.5
   point_size:

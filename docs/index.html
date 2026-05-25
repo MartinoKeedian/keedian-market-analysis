@@ -21,6 +21,8 @@
       <span class="brand-context">Market Analysis · Internal</span>
     </a>
     <div class="topbar-meta">
+      <a href="./criteria.html">Criteria reference →</a>
+      <span class="brand-divider"></span>
       <a href="./parameters.html">Parameters →</a>
       <span class="brand-divider"></span>
       <a href="https://roiams.github.io/KeedianProductization/" target="_blank" rel="noopener">Productization ↗</a>
@@ -31,7 +33,7 @@
 <main class="kma-main">
   <header class="page-head">
     <h1>Segments Prioritization Matrix</h1>
-    <p class="lead">Impact × Feasibility across all candidate customer profiles. Click a point to drill down. Edit scoring weights in <a href="./parameters.html">Parameters</a>.</p>
+    <p class="lead">Impact × Feasibility across all candidate customer profiles. Click a point to drill down. Edit scoring weights in <a href="./parameters.html">Parameters</a>; see what each input means in <a href="./criteria.html">Criteria reference</a>.</p>
   </header>
 
   <section class="filter-bar">
@@ -58,11 +60,19 @@
     <div id="matrix-legend" class="matrix-legend"></div>
   </section>
 
-  <section class="quadrant-summary" id="quadrant-summary"></section>
+  <section class="quadrant-section">
+    <h2>Quadrant breakdown</h2>
+    <div id="quadrant-tabs" class="quadrant-tabs"></div>
+    <div id="quadrant-panel" class="quadrant-panel"></div>
+  </section>
+
+  <section id="selected-profile" class="selected-profile" hidden>
+    <!-- populated by matrix.js when a profile is selected -->
+  </section>
 </main>
 
 <div class="footer">
-  Market Analysis · Internal · single-owner repo · <a href="https://github.com/MartinoKeedian/keedian-market-analysis" target="_blank" rel="noopener">source</a>
+  Market Analysis · Internal · single-owner repo · <a href="https://github.com/MartinoKeedian/keedian-market-analysis" target="_blank" rel="noopener">source</a> · <a href="./criteria.html">criteria</a> · <a href="./parameters.html">parameters</a>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
