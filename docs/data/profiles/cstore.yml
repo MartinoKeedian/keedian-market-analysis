@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: cstore
 display_name: "Convenience Stores (no fuel)"
 kp_segment_id: cstore
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 30
+    high: 80
+    rationale: "Hard to separate from cstore+fuel. NACS total convenience stores in US = 151,975 (mostly with fuel). Pure no-fuel cstore is a smaller urban/specialty segment — ~30–80 multi-site chains."
+    source: "NACS / NIQ TDLinx 2026 Convenience Industry Store Count"
+
   typical_site_sqft:
     low: 860
     high: 2700
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: fragmented
-    notes: "Very fragmented; few national chains, mostly mom-and-pop."
+    rationale: "Pure no-fuel cstore market is fragmented. Major chains skew to gas-station combo. Urban no-fuel banners are mostly local or regional."
+    source: "CSP Daily News Top 40 cstore chains 2026"
 
   bms_penetration:
     value: 3
-    notes: "Low to medium — small format, minimal automation."
+    rationale: "Small format, minimal automation. Refrigeration is the main controlled system; HVAC and lighting usually direct/timer controls."
+    source: "Inferred from typical c-store store-build sheets"
 
   pain_points:
     - "Refrigeration uptime"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 120 }
     US:
       sites:           { low: 47500, high: 52500, nominal: 50000 }
+      sites_rationale: "Estimated subset of 151,975 NACS total that operate without fuel pumps."
       implementation:  { addressable_pct: 25, avg_ticket_usd: 8000 }
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 160 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 4
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

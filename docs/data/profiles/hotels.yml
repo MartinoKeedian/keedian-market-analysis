@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: hotels
 display_name: "Hotels"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 150
+    high: 250
+    rationale: "Marriott 30 brands + Hilton 26 + Hyatt 30+ + IHG ~15 + Choice ~15 + Wyndham ~25 + Best Western ~15 + many smaller groups = ~150–250 distinct hotel brands operating in the US."
+    source: "Marriott / Hilton / Hyatt / IHG 2025-2026 annual reports"
+
   typical_site_sqft:
     low: 21500
     high: 320000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: mixed
-    notes: "Brands concentrated (Marriott, Hilton); property ownership fragmented."
+    rationale: "Brand families concentrated (Marriott, Hilton, IHG asset-light model), but property ownership highly fragmented across franchisees, REITs, and individual owners."
+    source: "Marriott 2025 annual report; HotelMinder 2026 ownership guide"
 
   bms_penetration:
     value: 7
-    notes: "Most branded hotels have BMS; mid-tier mixed."
+    rationale: "Branded hotels typically have BMS (guest-room HVAC control, ACS hot water, common-area lighting). Mid-tier hotels mixed; independents less so."
+    source: "Industry experience; brand-standard requirements at flag level"
 
   pain_points:
     - "Room HVAC control"
@@ -33,15 +41,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 470, high: 630, nominal: 550 }
+      sites:           { low: 480, high: 640, nominal: 560 }
       implementation:  { addressable_pct: 10, avg_ticket_usd: 38300 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 600 }
     MX:
-      sites:           { low: 4680, high: 6330, nominal: 5500 }
+      sites:           { low: 4760, high: 6440, nominal: 5600 }
       implementation:  { addressable_pct: 10, avg_ticket_usd: 36000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 530 }
     US:
-      sites:           { low: 52300, high: 57800, nominal: 55000 }
+      sites:           { low: 53200, high: 58800, nominal: 56000 }
+      sites_rationale: "AHLA reports ~55–60k hotel properties operating in the US."
       implementation:  { addressable_pct: 10, avg_ticket_usd: 45000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 700 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 7
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

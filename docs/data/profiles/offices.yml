@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: offices
 display_name: "Corporate Offices"
 kp_segment_id: offices
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 5000
+    high: 50000
+    rationale: "Office buildings owned by thousands of REITs (Boston Properties, SL Green, Vornado, Brookfield) plus tens of thousands of private owners and corporate occupants. ~5,000–50,000 distinct building owners with multi-site portfolios."
+    source: "NAIOP / NAREIT 2025; CBRE office portfolio reports"
+
   typical_site_sqft:
     low: 5400
     high: 1076000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: fragmented
-    notes: "Class A buildings concentrated; rest very fragmented."
+    rationale: "Class A in major metros concentrated among large REITs and institutional owners. Class B and below highly fragmented across smaller landlords and corporate self-owners."
+    source: "CBRE office market reports 2025"
 
   bms_penetration:
-    value: 6
-    notes: "High in Class A; mixed below."
+    value: 7
+    rationale: "Over 74% of US commercial office buildings >50,000 sqft use intelligent BMS. Over 82% of Class A in major metros have automated access + BMS. Class B/C much less."
+    source: "Innowise BMS guide 2026; Mordor Intelligence US commercial building automation 2031 forecast"
 
   pain_points:
     - "HVAC comfort"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 380 }
     US:
       sites:           { low: 475000, high: 525000, nominal: 500000 }
+      sites_rationale: "CBRE / Cushman estimates of office buildings of meaningful size in US ranges from 100k to multi-hundred-thousand including small Class B/C."
       implementation:  { addressable_pct: 8, avg_ticket_usd: 30000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 500 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 6
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

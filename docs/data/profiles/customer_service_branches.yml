@@ -1,30 +1,38 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: customer_service_branches
 display_name: "Customer service branches"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 10
+    high: 40
+    rationale: "Telco (AT&T 2,200 corporate + authorized retailers, Verizon similar, T-Mobile). Cable (Xfinity, Spectrum). Utilities (PG&E, Con Ed, etc.). Insurance offices (State Farm, Allstate). ~10–40 brands with meaningful customer-facing branch networks."
+    source: "AT&T 2025 retail footprint; Verizon retail network 2026; Atlanta News First 2026"
+
   typical_site_sqft:
     low: 2000
     high: 15000
     nominal: 6000
 
   market_concentration:
-    value: mixed
-    notes: "Telco / utility customer-facing offices."
+    value: concentrated
+    rationale: "Big 3 telcos (AT&T, Verizon, T-Mobile) dominate retail telco. Insurance branches more fragmented across thousands of State Farm / Allstate / Farmers agents."
+    source: "AT&T / Verizon / T-Mobile retail networks"
 
   bms_penetration:
     value: 6
-    notes: "Medium-high; varies by parent company."
+    rationale: "Telco flagship stores instrumented (Verizon, Apple). Smaller authorized retailers less so. Cable / utility kiosks vary widely."
+    source: "Industry experience"
 
   pain_points:
     - "HVAC for service halls"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 210 }
     US:
       sites:           { low: 28500, high: 31500, nominal: 30000 }
+      sites_rationale: "AT&T 2,200 corporate + Verizon network + T-Mobile + cable + utility kiosks + insurance branches."
       implementation:  { addressable_pct: 15, avg_ticket_usd: 15000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 280 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 6
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

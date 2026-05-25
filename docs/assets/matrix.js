@@ -54,7 +54,7 @@ function render() {
   lastRows = scoreAllProfiles(country, mode);
   const axes = computeAxes(lastRows, state.scoring);
   drawScatter(lastRows, axes);
-  drawQuadrantTabs(lastRows, axes);
+  drawMasterTable(lastRows, axes, country, mode);
   if (selectedId) drawSelectedProfile(selectedId);
 }
 
@@ -280,66 +280,187 @@ function drawLegend(rows) {
   `;
 }
 
-// -------------------------- Quadrant tabs --------------------------
+// -------------------------- Master table --------------------------
 
-function drawQuadrantTabs(rows, axes) {
+const COUNTRIES = ['CL', 'MX', 'US'];
+const HORIZON_DEFAULT = 3;
+
+function drawMasterTable(rows, axes, country, mode) {
   const t = { impact: axes.xThreshold, feasibility: axes.yThreshold };
   const labels = state.scoring.display.quadrant_labels;
-  const order = ['high_impact_high_feas', 'low_impact_high_feas', 'high_impact_low_feas', 'low_impact_low_feas'];
-  const buckets = Object.fromEntries(order.map((q) => [q, []]));
-  for (const r of rows) {
-    if (!r.hasData) continue;
-    const q = classifyQuadrant(r.impact10, r.feasibility10, t);
-    buckets[q].push(r);
-  }
-  for (const q of order) {
-    buckets[q].sort((a, b) =>
-      b.impact10 + b.feasibility10 - (a.impact10 + a.feasibility10)
-    );
-  }
+  const horizon = state.scoring.impact.subscription_horizon_years ?? HORIZON_DEFAULT;
+  const countryLabel = country === 'all' ? 'all' : country;
 
-  // Default tab: the most populated, or "Go now" if tied.
-  if (!activeQuadrant || buckets[activeQuadrant].length === 0) {
-    activeQuadrant = order.find((q) => buckets[q].length > 0) || 'high_impact_high_feas';
-  }
-
-  const tabs = document.getElementById('quadrant-tabs');
-  tabs.innerHTML = order
-    .map(
-      (q) => `
-      <button class="qtab ${q === activeQuadrant ? 'active' : ''} ${q}" data-q="${q}">
-        <span class="qtab-label">${labels[q]}</span>
-        <span class="qtab-count">${buckets[q].length}</span>
-      </button>`
-    )
-    .join('');
-  tabs.querySelectorAll('.qtab').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      activeQuadrant = btn.dataset.q;
-      drawQuadrantTabs(rows, axes);
-    });
+  // Pre-compute table rows
+  const tableRows = rows.map((r) => {
+    const view = computeTableRow(r.profile, country, mode, horizon);
+    const quadrant = r.hasData ? classifyQuadrant(r.impact10, r.feasibility10, t) : null;
+    return { row: r, view, quadrant };
   });
 
-  const panel = document.getElementById('quadrant-panel');
-  const profiles = buckets[activeQuadrant];
-  panel.innerHTML = profiles.length === 0
-    ? `<p class="muted">No profiles in <strong>${labels[activeQuadrant]}</strong> for the current filters.</p>`
-    : `
-      <p class="muted small">${profiles.length} profile${profiles.length === 1 ? '' : 's'} in <strong>${labels[activeQuadrant]}</strong> — sorted by combined Impact + Feasibility.</p>
-      <ol class="quadrant-list">
-        ${profiles.map((r) => `
-          <li>
-            <button class="profile-link" data-id="${r.profile.id}">
-              <span class="profile-link-name">${getProfileDisplayName(r.profile)}</span>
-              <span class="profile-link-scores">I ${r.impact10.toFixed(1)} · F ${r.feasibility10.toFixed(1)}</span>
-            </button>
-          </li>
-        `).join('')}
-      </ol>
-    `;
-  panel.querySelectorAll('.profile-link').forEach((btn) => {
-    btn.addEventListener('click', () => selectProfile(btn.dataset.id));
+  // Sort default: by Impact desc.
+  tableRows.sort((a, b) => (b.row.impactUsd || 0) - (a.row.impactUsd || 0));
+
+  const sectionEl = document.getElementById('master-table-wrap');
+  sectionEl.innerHTML = `
+    <div class="table-meta">
+      <span class="muted small">Showing data for <strong>${countryLabel}</strong> · mode <strong>${mode}</strong> · subscription horizon ${horizon}y. Click a row to drill down. Hover cells for source.</span>
+    </div>
+    <div class="master-table-scroll">
+      <table class="master-table">
+        <thead>
+          <tr class="group-header">
+            <th rowspan="2" class="sticky-col">Profile</th>
+            <th colspan="4">General data</th>
+            <th colspan="3">Implementation</th>
+            <th colspan="3">Subscription (annual, Essential approx.)</th>
+            <th colspan="2">Impact</th>
+            <th colspan="2">Quadrant · Feasibility</th>
+            <th colspan="5">Feasibility inputs (1–10)</th>
+          </tr>
+          <tr class="sub-header">
+            <th class="num">Brands</th>
+            <th class="num">Sites</th>
+            <th class="num" title="Building Management System / IoT penetration (1–10).">BMS</th>
+            <th>Concentration</th>
+            <th class="num">%&nbsp;Sites</th>
+            <th class="num">$/ticket</th>
+            <th class="num">Total&nbsp;impl.</th>
+            <th class="num">%&nbsp;Sites</th>
+            <th class="num">$/yr/site</th>
+            <th class="num">Total&nbsp;sub.</th>
+            <th class="num">USD</th>
+            <th class="num">1–10</th>
+            <th>Quadrant</th>
+            <th class="num">Score</th>
+            <th class="num" title="Need perception">Need</th>
+            <th class="num" title="HW gap (raw — inverted in scoring)">HW gap</th>
+            <th class="num" title="Similar clients exist">Sim.</th>
+            <th class="num" title="BMS penetration effect (raw — sign by mode)">BMS&nbsp;eff.</th>
+            <th class="num" title="Sustainment upside">Sust.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows.map((tr) => renderTableRow(tr, labels)).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  // Wire up clicks.
+  sectionEl.querySelectorAll('tr.data-row').forEach((trEl) => {
+    trEl.addEventListener('click', () => selectProfile(trEl.dataset.id));
   });
+}
+
+function renderTableRow({ row, view, quadrant }, labels) {
+  const p = row.profile;
+  const m = p.market_analysis || {};
+  const isSelected = p.id === selectedId;
+
+  const bmsTitle = escapeAttr(`${m.bms_penetration?.rationale || ''}\nSource: ${m.bms_penetration?.source || '—'}`);
+  const concTitle = escapeAttr(`${m.market_concentration?.rationale || ''}\nSource: ${m.market_concentration?.source || '—'}`);
+  const brandsTitle = escapeAttr(`${m.brands_range?.rationale || ''}\nSource: ${m.brands_range?.source || '—'}`);
+  const sitesTitle = escapeAttr(`${view.sites_notes || ''}`);
+
+  const concBadge = m.market_concentration?.value
+    ? `<span class="conc-badge conc-${m.market_concentration.value}">${m.market_concentration.value}</span>`
+    : '—';
+
+  const quadrantLabel = quadrant ? labels[quadrant] : '—';
+  const quadrantClass = quadrant ? quadrant : '';
+
+  return `
+    <tr class="data-row${isSelected ? ' selected' : ''}" data-id="${p.id}">
+      <td class="sticky-col profile-name">
+        <span class="status-dot status-${getProfileStatus(p)}"></span>
+        ${escapeHtml(getProfileDisplayName(p))}
+      </td>
+      <td class="num" title="${brandsTitle}">${fmtRange(m.brands_range?.low, m.brands_range?.high)}</td>
+      <td class="num" title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
+      <td class="num bms-cell" title="${bmsTitle}">${m.bms_penetration?.value ?? '—'}</td>
+      <td title="${concTitle}">${concBadge}</td>
+      <td class="num">${fmtPct(view.impl_addr)}</td>
+      <td class="num">${fmtUsd(view.impl_ticket)}</td>
+      <td class="num strong">${fmtUsd(view.impl_total)}</td>
+      <td class="num">${fmtPct(view.sub_addr)}</td>
+      <td class="num">${fmtUsd(view.sub_arpu_annual)}</td>
+      <td class="num strong">${fmtUsd(view.sub_total)}</td>
+      <td class="num strong">${fmtUsd(view.impact_usd)}</td>
+      <td class="num">${row.impact10 != null ? row.impact10.toFixed(1) : '—'}</td>
+      <td><span class="qbadge ${quadrantClass}">${quadrantLabel}</span></td>
+      <td class="num strong">${row.feasibility10 != null ? row.feasibility10.toFixed(1) : '—'}</td>
+      <td class="num">${m.feasibility_inputs?.need_perception ?? '—'}</td>
+      <td class="num">${m.feasibility_inputs?.delivery_capacity?.hw_gap ?? '—'}</td>
+      <td class="num">${m.feasibility_inputs?.delivery_capacity?.similar_clients_exist ?? '—'}</td>
+      <td class="num">${m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect ?? '—'}</td>
+      <td class="num">${m.feasibility_inputs?.delivery_capacity?.sustainment_upside ?? '—'}</td>
+    </tr>
+  `;
+}
+
+function computeTableRow(profile, country, mode, horizon) {
+  const m = profile.market_analysis || {};
+  const countries = country === 'all' ? COUNTRIES : [country];
+
+  // Per-country aggregation
+  let sitesTotal = 0;
+  let implTotal = 0;
+  let subTotal = 0;
+  let weightedImplAddr = 0;
+  let weightedSubAddr = 0;
+  let weightedImplTicket = 0;
+  let weightedSubArpu = 0;
+  let weightSum = 0;
+
+  for (const c of countries) {
+    const cd = (m.by_country || {})[c];
+    if (!cd) continue;
+    const sites = cd.sites?.nominal ?? 0;
+    if (sites === 0) continue;
+    sitesTotal += sites;
+
+    const implAddr = cd.implementation?.addressable_pct ?? 0;
+    const implTicket = cd.implementation?.avg_ticket_usd ?? 0;
+    const subAddr = cd.subscription?.addressable_pct ?? 0;
+    const arpuMonthly = cd.subscription?.arpu_monthly_usd ?? 0;
+    const arpuAnnual = arpuMonthly * 12;
+
+    implTotal += sites * (implAddr / 100) * implTicket;
+    subTotal += sites * (subAddr / 100) * arpuAnnual * horizon;
+
+    weightedImplAddr += implAddr * sites;
+    weightedSubAddr += subAddr * sites;
+    weightedImplTicket += implTicket * sites;
+    weightedSubArpu += arpuAnnual * sites;
+    weightSum += sites;
+  }
+
+  const view = {
+    sites_total: sitesTotal,
+    impl_addr: weightSum > 0 ? Math.round(weightedImplAddr / weightSum) : null,
+    impl_ticket: weightSum > 0 ? Math.round(weightedImplTicket / weightSum) : null,
+    impl_total: implTotal,
+    sub_addr: weightSum > 0 ? Math.round(weightedSubAddr / weightSum) : null,
+    sub_arpu_annual: weightSum > 0 ? Math.round(weightedSubArpu / weightSum) : null,
+    sub_total: subTotal,
+    impact_usd:
+      mode === 'implementation_only' ? implTotal :
+      mode === 'subscription_only' ? subTotal :
+      implTotal + subTotal,
+    sites_notes: m.by_country?.US?.sites_rationale || '',
+  };
+  return view;
+}
+
+function escapeAttr(s) {
+  return String(s).replaceAll('"', '&quot;').replaceAll('\n', '&#10;');
+}
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }
 
 // -------------------------- Inline selected-profile panel --------------------------

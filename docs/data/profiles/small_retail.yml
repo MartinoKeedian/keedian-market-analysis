@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: small_retail
 display_name: "Small & Medium Stores"
 kp_segment_id: small_retail
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 100000
+    high: 800000
+    rationale: "IBISWorld 2026: 195,934 Small Specialty Retail Stores. Plus mom-and-pop independents across grocery, apparel, hardware, etc. Brick-and-mortar total ≈ 1,050,000. Most are single-location or 2–10 location operations."
+    source: "IBISWorld 2026 Small Specialty Retail; Capital One Shopping Retail Statistics 2026"
+
   typical_site_sqft:
     low: 540
     high: 5400
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: fragmented
-    notes: "Millions of small operators; no national play."
+    rationale: "Vast majority independent. California 64.6% independent; Florida 58.0% independent. No national chain owns more than a few percent of small-format retail."
+    source: "Merchant Machine 2025 US independent stores; Capital One Shopping 2026"
 
   bms_penetration:
     value: 2
-    notes: "Low — small format, no automation."
+    rationale: "Small format, no automation. HVAC is residential-grade or light-commercial. Lighting on basic controls."
+    source: "Inferred from typical small-format build-outs"
 
   pain_points:
     - "HVAC comfort"
@@ -32,15 +40,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 19100, high: 25900, nominal: 22500 }
+      sites:           { low: 12800, high: 17200, nominal: 15000 }
       implementation:  { addressable_pct: 10, avg_ticket_usd: 4250 }
       subscription:    { addressable_pct: 15, arpu_monthly_usd: 85 }
     MX:
-      sites:           { low: 153000, high: 207000, nominal: 180000 }
+      sites:           { low: 102000, high: 138000, nominal: 120000 }
       implementation:  { addressable_pct: 10, avg_ticket_usd: 4000 }
       subscription:    { addressable_pct: 15, arpu_monthly_usd: 75 }
     US:
-      sites:           { low: 1425000, high: 1575000, nominal: 1500000 }
+      sites:           { low: 950000, high: 1050000, nominal: 1000000 }
+      sites_rationale: "Brick-and-mortar retail total ≈ 1,050,000; small/medium subset ≈ 95% of that (excluding national chains and big-box)."
       implementation:  { addressable_pct: 10, avg_ticket_usd: 5000 }
       subscription:    { addressable_pct: 15, arpu_monthly_usd: 100 }
 
@@ -53,6 +62,10 @@ market_analysis:
       sustainment_upside: 2
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

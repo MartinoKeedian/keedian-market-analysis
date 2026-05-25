@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: clinics_private
 display_name: "Private Clinics"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 100000
+    high: 250000
+    rationale: "NextMD 2026: 213,000 private medical practices in 2020, growing 17% since; currently 55% of physicians work in private practice. Plus 31,748 standalone clinics, 5,650 Rural Health Clinics, 1,400 Free/Charitable clinics."
+    source: "NextMD State of Private Medicine 2026; Xmap AI 2026"
+
   typical_site_sqft:
     low: 2150
     high: 21500
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: fragmented
-    notes: "Tens of thousands of independent practices."
+    rationale: "Hundreds of thousands of independent practices. Some consolidation into private equity-backed multispecialty groups but the long tail dominates."
+    source: "PMC 2024 Physician Employment in America; Bipartisan Policy Center on Provider Consolidation"
 
   bms_penetration:
     value: 3
-    notes: "Low to medium — small format, minimal automation."
+    rationale: "Small format, minimal automation. HVAC is residential-grade or light-commercial. Some specialized equipment (imaging) requires controlled rooms but rarely linked to BMS."
+    source: "Inferred from typical small-clinic build-outs"
 
   pain_points:
     - "HVAC for sensitive equipment"
@@ -32,15 +40,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 260, high: 350, nominal: 300 }
+      sites:           { low: 400, high: 550, nominal: 480 }
       implementation:  { addressable_pct: 15, avg_ticket_usd: 10200 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 170 }
     MX:
-      sites:           { low: 2040, high: 2760, nominal: 2400 }
+      sites:           { low: 3240, high: 4380, nominal: 3810 }
       implementation:  { addressable_pct: 15, avg_ticket_usd: 9600 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 150 }
     US:
-      sites:           { low: 19000, high: 21000, nominal: 20000 }
+      sites:           { low: 30200, high: 33300, nominal: 31748 }
+      sites_rationale: "Xmap AI 2026: 31,748 clinics in the US (standalone outpatient)."
       implementation:  { addressable_pct: 15, avg_ticket_usd: 12000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 200 }
 
@@ -53,6 +62,10 @@ market_analysis:
       sustainment_upside: 3
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

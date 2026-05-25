@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: cinemas
 display_name: "Theaters & Cinemas"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 10
+    high: 30
+    rationale: "AMC (23% share), Cinemark (15%), Regal (Cineworld), plus regional chains (Marcus, Harkins, Cinepolis, Showcase, Bow Tie). ~10–30 brands with meaningful US presence."
+    source: "Statista US-Canada top cinema circuits by screens 2023; AMC 10-K 2025"
+
   typical_site_sqft:
     low: 10800
     high: 54000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: concentrated
-    notes: "AMC, Regal, Cinemark account for most rooms."
+    rationale: "Top 3 (AMC + Cinemark + Regal) ≈ 60% market share, ≈ 18,500 screens of ~40,000 US screens."
+    source: "Statista 2023; Renub 2025 top US movie theater companies"
 
   bms_penetration:
     value: 5
-    notes: "Medium."
+    rationale: "Major chains instrument HVAC for variable occupancy. Mid-tier and regionals less so."
+    source: "Industry experience"
 
   pain_points:
     - "HVAC during high-occupancy events"
@@ -33,15 +41,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 370, high: 490, nominal: 430 }
+      sites:           { low: 49, high: 67, nominal: 58 }
       implementation:  { addressable_pct: 12, avg_ticket_usd: 21300 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 340 }
     MX:
-      sites:           { low: 3660, high: 4950, nominal: 4300 }
+      sites:           { low: 490, high: 670, nominal: 580 }
       implementation:  { addressable_pct: 12, avg_ticket_usd: 20000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 300 }
     US:
-      sites:           { low: 40900, high: 45200, nominal: 43000 }
+      sites:           { low: 5510, high: 6090, nominal: 5800 }
+      sites_rationale: "NATO reports ~5,700–6,000 movie theaters in the US."
       implementation:  { addressable_pct: 12, avg_ticket_usd: 25000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 400 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 5
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

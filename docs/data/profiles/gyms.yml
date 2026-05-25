@@ -1,30 +1,38 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: gyms
 display_name: "Gyms / Fitness Centers"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 50
+    high: 150
+    rationale: "Planet Fitness has ~25% of US gym members. LA Fitness 700+, 24 Hour Fitness 280+, Gold's Gym ~600, Anytime Fitness, Life Time, Equinox + boutique studios (Orangetheory, F45, SoulCycle, Barry's). ~50–150 brands with multi-site operations."
+    source: "IBISWorld 2026 Gym Health Fitness Clubs; Mordor Intelligence Fitness Centers 2031"
+
   typical_site_sqft:
     low: 4300
     high: 54000
     nominal: 15000
 
   market_concentration:
-    value: mixed
-    notes: "Planet Fitness / Anytime Fitness at scale; boutique fragmented."
+    value: fragmented
+    rationale: "Top 5 chains each ≤5% of industry revenue; top 5 combined likely <30% of revenues. Planet Fitness has 25% of members but lower revenue per member."
+    source: "Mordor Intelligence 2031; Virtuagym 2026 benchmarks"
 
   bms_penetration:
     value: 5
-    notes: "Medium; chain-dependent."
+    rationale: "Chain-dependent. Life Time and Equinox instrument heavily; mid-tier chains less so; boutique studios usually building-level HVAC."
+    source: "Industry experience; Equinox / Life Time facility standards"
 
   pain_points:
     - "HVAC intensive use"
@@ -32,15 +40,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 380, high: 520, nominal: 450 }
+      sites:           { low: 970, high: 1310, nominal: 1140 }
       implementation:  { addressable_pct: 15, avg_ticket_usd: 15300 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 260 }
     MX:
-      sites:           { low: 3060, high: 4140, nominal: 3600 }
+      sites:           { low: 7750, high: 10500, nominal: 9120 }
       implementation:  { addressable_pct: 15, avg_ticket_usd: 14400 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 230 }
     US:
-      sites:           { low: 42800, high: 47300, nominal: 45000 }
+      sites:           { low: 108300, high: 119700, nominal: 114000 }
+      sites_rationale: "Custom Market Insights 2026: ~114,370 gyms / fitness centers / health clubs in the US."
       implementation:  { addressable_pct: 15, avg_ticket_usd: 18000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 300 }
 
@@ -53,6 +62,10 @@ market_analysis:
       sustainment_upside: 4
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

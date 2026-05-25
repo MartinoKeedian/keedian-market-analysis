@@ -1,30 +1,38 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: cstore_fuel
 display_name: "Gas Stations + C-Stores"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 50
+    high: 100
+    rationale: "NACS total = 151,975 stores. 7-Eleven 12,238 + Couche-Tard 6,852 + Circle K 6,846 + Speedway 2,864 + Casey's 2,807 + QuikTrip 1,222 + AMPM 1,040 = top 7 = 33,869 (~22%). Top 100 chains capture most of the chain-operated stores; ~50–100 multi-site brands matter commercially."
+    source: "NACS 2026 Top 100 Convenience Retailers; ScrapeHero 2026"
+
   typical_site_sqft:
     low: 1000
     high: 3200
     nominal: 2000
 
   market_concentration:
-    value: fragmented
-    notes: "Fragmented overall; top chains (7-Eleven, Circle K) very strong."
+    value: mixed
+    rationale: "Top 3 brands hold 73% share of the top-10 segment; below the top tier the market is fragmented. Many independent gas station + small store operators."
+    source: "ScrapeHero 2026 10 Largest Convenience Stores in the USA"
 
   bms_penetration:
     value: 5
-    notes: "Medium — varies by chain; top brands instrument."
+    rationale: "Top chains instrument refrigeration and fuel systems; mid-tier varies. HVAC and lighting often basic controls. Newer builds increasingly add BMS."
+    source: "Industry estimate based on top-chain instrumentation pattern"
 
   pain_points:
     - "Refrigeration 24/7"
@@ -34,15 +42,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 1450, high: 1950, nominal: 1700 }
+      sites:           { low: 1290, high: 1750, nominal: 1520 }
       implementation:  { addressable_pct: 20, avg_ticket_usd: 8500 }
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 170 }
     MX:
-      sites:           { low: 14500, high: 19600, nominal: 17000 }
+      sites:           { low: 12900, high: 17500, nominal: 15200 }
       implementation:  { addressable_pct: 20, avg_ticket_usd: 8000 }
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 150 }
     US:
-      sites:           { low: 161500, high: 178500, nominal: 170000 }
+      sites:           { low: 144400, high: 159600, nominal: 152000 }
+      sites_rationale: "NACS 2026: 151,975 total convenience stores (the vast majority with fuel)."
       implementation:  { addressable_pct: 20, avg_ticket_usd: 10000 }
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 200 }
 
@@ -55,6 +64,10 @@ market_analysis:
       sustainment_upside: 5
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

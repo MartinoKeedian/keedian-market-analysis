@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: malls
 display_name: "Malls / Shopping Centers"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 30
+    high: 80
+    rationale: "Simon Property Group leads with 12.83% market share (206 US malls). Other major mall REITs: Brookfield, Macerich, Tanger, Kimco, Brixmor, Federal Realty, Regency Centers, Realty Income — ~30–80 operators of consequence."
+    source: "Simon Property Group 2026 portfolio; ScrapeHero 2026"
+
   typical_site_sqft:
     low: 215000
     high: 1615000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: mixed
-    notes: "Few REITs control most large malls; strip centers fragmented."
+    rationale: "Top REITs control most large malls (Class A); strip centers and lifestyle centers more fragmented. Simon alone 12.83%; top 10 REITs likely 50–60% combined."
+    source: "Simon Property Group 2025 10-K; Statista REIT shares"
 
   bms_penetration:
     value: 6
-    notes: "High in large malls, medium in strip centers."
+    rationale: "High in large enclosed malls (REIT-managed common areas). Strip centers usually no BMS — each tenant runs their own HVAC."
+    source: "Industry experience; mall ops standardization"
 
   pain_points:
     - "Common-area HVAC"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 830 }
     US:
       sites:           { low: 7130, high: 7880, nominal: 7500 }
+      sites_rationale: "ICSC reports ~1,100 enclosed malls plus ~6,000–7,000 lifestyle/community/strip centers of meaningful size."
       implementation:  { addressable_pct: 10, avg_ticket_usd: 70000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 1100 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 7
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

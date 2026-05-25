@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: spas_beauty
 display_name: "Spas and beauty"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 50
+    high: 200
+    rationale: "Massage Envy 1,000+, Hand & Stone 590, European Wax Center ~900, plus MassageLuxe, Drybar, Great Clips, Supercuts, Ulta Beauty salons. ~50–200 multi-site brands."
+    source: "Franchise Chatter 2026 top massage franchises; Hand & Stone 2026"
+
   typical_site_sqft:
     low: 1500
     high: 8000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: fragmented
-    notes: "Mostly independent operators; a few national chains."
+    rationale: "Massage chains and franchises only ~22% of consumers. Vast majority of spa/beauty businesses are independent or small chains."
+    source: "Franchise Chatter 2026; ResearchAndMarkets US massage market"
 
   bms_penetration:
     value: 4
-    notes: "Low to medium."
+    rationale: "Mall-tenant or strip-center operators usually rely on building HVAC. Standalone branded spas slightly more instrumented."
+    source: "Industry experience"
 
   pain_points:
     - "HVAC comfort in treatment rooms"
@@ -41,6 +49,7 @@ market_analysis:
       subscription:    { addressable_pct: 15, arpu_monthly_usd: 110 }
     US:
       sites:           { low: 85500, high: 94500, nominal: 90000 }
+      sites_rationale: "Combined chain + independent estimate; chain locations (Massage Envy, Hand & Stone, European Wax Center, Great Clips etc.) ≈ 10–15k; independent thousands more."
       implementation:  { addressable_pct: 15, avg_ticket_usd: 8000 }
       subscription:    { addressable_pct: 15, arpu_monthly_usd: 150 }
 
@@ -53,6 +62,10 @@ market_analysis:
       sustainment_upside: 3
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

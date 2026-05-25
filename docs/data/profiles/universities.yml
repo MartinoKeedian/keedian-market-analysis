@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: universities
 display_name: "Universities / Campuses"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 3000
+    high: 6000
+    rationale: "Carnegie 2025: 187 R1 (very high research) + 216 Research Colleges + thousands of other 2-year and 4-year institutions. Total US higher-ed institutions ≈ 5,600 (including community colleges and tech schools)."
+    source: "Carnegie Foundation 2025 update; SSTI 2025 R1 designees"
+
   typical_site_sqft:
     low: 538000
     high: 5380000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: fragmented
-    notes: "Each institution is its own buyer."
+    rationale: "Each institution is its own buyer. State systems coordinate facilities at the system level (UC, SUNY, CSU) but most decisions are campus-level. No real concentration."
+    source: "Carnegie Foundation 2025"
 
   bms_penetration:
     value: 7
-    notes: "Most R1 universities instrumented; smaller colleges less so."
+    rationale: "R1 universities typically have campus-wide BMS (Siemens, JCI, Honeywell). State institutions also high. Smaller liberal arts and community colleges vary."
+    source: "Industry experience; ESG / sustainability reporting drives BMS at universities"
 
   pain_points:
     - "HVAC across many buildings"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 1350 }
     US:
       sites:           { low: 5320, high: 5880, nominal: 5600 }
+      sites_rationale: "Carnegie 2025: total higher-ed institutions in the US."
       implementation:  { addressable_pct: 12, avg_ticket_usd: 120000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 1800 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 8
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

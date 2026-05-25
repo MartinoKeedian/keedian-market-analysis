@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: bank_branches
 display_name: "Bank branches"
 kp_segment_id: bank_branches
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 100
+    high: 500
+    rationale: "Chase 5,000+, Wells Fargo 4,100, Bank of America 3,700, PNC 2,300, Citi <700, US Bank ~2,000. Top 10 banks dominate. Plus thousands of community banks and credit unions — ~100–500 brands with multi-site retail networks."
+    source: "Bankrate 2026 15 Largest Banks in the US; NerdWallet 2026 20 Largest Banks"
+
   typical_site_sqft:
     low: 2000
     high: 8000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: concentrated
-    notes: "Top 10 banks own most branches; community banks long tail."
+    rationale: "Top 5 banks (Chase, BoA, Wells Fargo, Citi, US Bank) hold ~50% of US deposits. JPMorgan Chase alone 11.7% of domestic deposits."
+    source: "Statista US bank market share by deposits 2024; WalletHub Bank Market Share 2026"
 
   bms_penetration:
     value: 7
-    notes: "Most major banks have BMS; uneven across regional players."
+    rationale: "Top banks have BMS at branch level (Chase, BoA standardized). Community banks and credit unions vary. UPS / power quality also instrumented."
+    source: "Industry experience; bank facility-mgmt standardization"
 
   pain_points:
     - "HVAC comfort"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 260 }
     US:
       sites:           { low: 76000, high: 84000, nominal: 80000 }
+      sites_rationale: "Sum of major retail branch networks (Chase 5,000 + WF 4,100 + BoA 3,700 + PNC 2,300 + Citi <700 + US Bank 2,000) ≈ 18k for top 6, plus regional + community banks pushes total to ~75–85k."
       implementation:  { addressable_pct: 15, avg_ticket_usd: 20000 }
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 350 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 7
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

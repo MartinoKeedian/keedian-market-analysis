@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: foodservice
 display_name: "Restaurant Chains (QSR / Fast Casual)"
 kp_segment_id: foodservice
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 100
+    high: 300
+    rationale: "Mature, highly competitive market with dozens of major QSR and fast-casual brands. Top 50 captured in QSR Magazine annual rankings; total multi-unit chain brand count ~100–300 including regional players."
+    source: "QSR Magazine 2025 Top 50; Restaurant Dive market trackers"
+
   typical_site_sqft:
     low: 1600
     high: 6500
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: concentrated
-    notes: "Brand-led; franchisee rollup."
+    rationale: "Brand-led; franchisee-rolled-up unit counts at scale. McDonald's, Subway, Starbucks, Chick-fil-A, Taco Bell each operate 5,000+ US sites. Top 50 brands account for the bulk of QSR revenue."
+    source: "QSR Magazine 2025 Top 50"
 
   bms_penetration:
     value: 5
-    notes: "Mixed; varies by brand."
+    rationale: "Brand-dependent. Top chains instrument kitchen equipment + refrigeration. HVAC and lighting often standard low-end controls."
+    source: "Industry experience; brand-driven standardization patterns"
 
   pain_points:
     - "Kitchen equipment uptime"
@@ -43,6 +51,7 @@ market_analysis:
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 210 }
     US:
       sites:           { low: 142500, high: 157500, nominal: 150000 }
+      sites_rationale: "Estimated chain restaurant locations (QSR + fast casual) in the US — multi-unit operators across the top 200 brands."
       implementation:  { addressable_pct: 20, avg_ticket_usd: 15000 }
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 280 }
 
@@ -55,6 +64,10 @@ market_analysis:
       sustainment_upside: 5
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

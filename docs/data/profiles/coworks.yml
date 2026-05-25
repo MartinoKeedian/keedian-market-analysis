@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: coworks
 display_name: "Coworks"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 4000
+    high: 5000
+    rationale: "CoworkingCafe Q1 2026: 4,431 unique operators managing 7,032 of the 9,136 locations. Most operators run 1–2 locations."
+    source: "CoworkingCafe US Coworking Industry Report Q1 2026"
+
   typical_site_sqft:
     low: 5400
     high: 54000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: fragmented
-    notes: "WeWork-scale players plus many local operators."
+    rationale: "Big 5 (Regus 1,237 + HQ 370 + Industrious 184 + Spaces + WeWork ~150) = 2,113 locations = ~23% of US total. Remaining 77% across thousands of independents."
+    source: "CoworkingCafe Q1 2026"
 
   bms_penetration:
     value: 5
-    notes: "Depends on landlord; varies widely."
+    rationale: "Depends on landlord. WeWork and Industrious instrumented in Class A; smaller operators rely on building HVAC."
+    source: "Industry experience; coworks usually tenants, not building owners"
 
   pain_points:
     - "HVAC comfort across meeting rooms"
@@ -32,15 +40,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 150, high: 210, nominal: 180 }
+      sites:           { low: 160, high: 210, nominal: 180 }
       implementation:  { addressable_pct: 15, avg_ticket_usd: 12800 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 210 }
     MX:
-      sites:           { low: 770, high: 1040, nominal: 900 }
+      sites:           { low: 780, high: 1050, nominal: 910 }
       implementation:  { addressable_pct: 15, avg_ticket_usd: 12000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 190 }
     US:
-      sites:           { low: 8550, high: 9450, nominal: 9000 }
+      sites:           { low: 8680, high: 9590, nominal: 9136 }
+      sites_rationale: "CoworkingCafe Q1 2026: 9,136 active US coworking locations."
       implementation:  { addressable_pct: 15, avg_ticket_usd: 15000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 250 }
 
@@ -53,6 +62,10 @@ market_analysis:
       sustainment_upside: 3
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

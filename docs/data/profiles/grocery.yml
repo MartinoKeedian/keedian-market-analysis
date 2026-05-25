@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: grocery
 display_name: "Supermarkets / Grocery"
 kp_segment_id: grocery
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 60
+    high: 120
+    rationale: "IBISWorld 2026: 77,543 grocery businesses in the US. Top 5 chains (Walmart 23.6%, Kroger, Costco, Albertsons, Publix) hold 53.4% of market. ~60–120 chains with multi-site footprint matter."
+    source: "IBISWorld 2026; Statista Grocery retailers market share US 2025"
+
   typical_site_sqft:
     low: 16000
     high: 65000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: mixed
-    notes: "Top chains strong, fragmented long tail."
+    rationale: "Top 5 chains 53.4% market share; long tail of regional and independent grocers in the remaining 46.6%."
+    source: "Statista 2025 Grocery retailers market share US"
 
   bms_penetration:
     value: 7
-    notes: "Most have legacy refrigeration BMS (Emerson, CPC)."
+    rationale: "Most large grocery chains have legacy refrigeration BMS (Emerson E2/E3, CPC, Honeywell). HVAC and lighting controls usually less integrated. Mid-tier and regional grocers vary."
+    source: "Keedian field experience; refrigeration EMS adoption is industry standard at scale"
 
   pain_points:
     - "Refrigeration downtime → product loss"
@@ -33,15 +41,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 2550, high: 3450, nominal: 3000 }
+      sites:           { low: 2590, high: 3510, nominal: 3050 }
       implementation:  { addressable_pct: 20, avg_ticket_usd: 18700 }
       subscription:    { addressable_pct: 35, arpu_monthly_usd: 320 }
     MX:
-      sites:           { low: 25500, high: 34500, nominal: 30000 }
+      sites:           { low: 25900, high: 35100, nominal: 30500 }
       implementation:  { addressable_pct: 20, avg_ticket_usd: 17600 }
       subscription:    { addressable_pct: 35, arpu_monthly_usd: 290 }
     US:
-      sites:           { low: 285000, high: 315000, nominal: 300000 }
+      sites:           { low: 289800, high: 320300, nominal: 305000 }
+      sites_rationale: "305,156 grocery store locations across all formats per IBISWorld 2026."
       implementation:  { addressable_pct: 20, avg_ticket_usd: 22000 }
       subscription:    { addressable_pct: 35, arpu_monthly_usd: 380 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 8
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

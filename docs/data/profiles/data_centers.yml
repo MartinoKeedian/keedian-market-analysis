@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: data_centers
 display_name: "Data centers"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 50
+    high: 200
+    rationale: "Hyperscalers (AWS, Azure, Google, Meta, Oracle) plus colocation leaders (Equinix 260 IBX, Digital Realty 300+ globally, QTS, CoreSite, CyrusOne, Iron Mountain, Vantage, Applied Digital). ~50–200 operators with meaningful US footprint."
+    source: "Equinix 2025 annual; Digital Realty 10-K; MarketsAndMarkets 2026 colo"
+
   typical_site_sqft:
     low: 50000
     high: 500000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: concentrated
-    notes: "Hyperscalers (AWS, Azure, GCP) plus colocation (Equinix, Digital Realty)."
+    rationale: "Hyperscalers + Equinix + Digital Realty + QTS dominate. Top 10 colo operators control most retail colo capacity."
+    source: "GlobeNewswire US Data Center Colocation Databook 2026"
 
   bms_penetration:
     value: 10
-    notes: "Very high — mission-critical, instrumented end-to-end."
+    rationale: "Mission-critical. Instrumented end-to-end (CRAC, PUE reporting, power redundancy, rack-level telemetry). Standard practice industry-wide."
+    source: "Uptime Institute; Equinix / Digital Realty operational disclosures"
 
   pain_points:
     - "Cooling (CRAC) optimization"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 1130 }
     US:
       sites:           { low: 2570, high: 2840, nominal: 2700 }
+      sites_rationale: "US data center facility count including hyperscalers + colo + enterprise self-managed; CBRE / JLL estimates 2,500–3,000."
       implementation:  { addressable_pct: 10, avg_ticket_usd: 100000 }
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 1500 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 8
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

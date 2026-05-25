@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: convention
 display_name: "Convention Centers"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 200
+    high: 500
+    rationale: "Mostly municipally owned. Some private operators (ASM Global, Spectra). Each venue is its own buyer for facility decisions."
+    source: "Northstar Meetings Group 2026; Skift Meetings 2026"
+
   typical_site_sqft:
     low: 215000
     high: 1076000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: fragmented
-    notes: "Mostly municipally owned; each one is its own buyer."
+    rationale: "Each venue municipally owned; no real concentration. ASM Global manages 350+ venues globally including many US convention centers."
+    source: "ASM Global; Northstar Meetings 2026"
 
   bms_penetration:
     value: 8
-    notes: "High in large centers."
+    rationale: "Large convention centers heavily instrumented (variable HVAC for event load swings, lighting scenes, water/utility metering). Smaller venues less so."
+    source: "Industry experience; convention center facility standards"
 
   pain_points:
     - "HVAC for variable occupancy"
@@ -33,15 +41,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 10, high: 14, nominal: 12 }
+      sites:           { low: 6, high: 8, nominal: 7 }
       implementation:  { addressable_pct: 10, avg_ticket_usd: 68000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 1020 }
     MX:
-      sites:           { low: 82, high: 110, nominal: 96 }
+      sites:           { low: 48, high: 64, nominal: 56 }
       implementation:  { addressable_pct: 10, avg_ticket_usd: 64000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 900 }
     US:
-      sites:           { low: 1140, high: 1260, nominal: 1200 }
+      sites:           { low: 670, high: 740, nominal: 700 }
+      sites_rationale: "Wikipedia US convention centers list + 10times.com venues directory: ~700 exhibition and convention center venues in the US."
       implementation:  { addressable_pct: 10, avg_ticket_usd: 80000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 1200 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 7
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: pharmacy
 display_name: "Pharmacy Chains"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 10
+    high: 30
+    rationale: "CVS 9,968 + Walgreens 9,024 + Health Mart 5,002 dominate. With Rite Aid closed in 2025, the market consolidated further. ~10–30 chains with multi-state operations remain."
+    source: "Drug Channels 2025 Top 15 US Pharmacies; ScrapeHero pharmacy chain count"
+
   typical_site_sqft:
     low: 2150
     high: 8600
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: concentrated
-    notes: "CVS, Walgreens, Walmart Rx dominate."
+    rationale: "Top 4 (CVS, Walgreens, Cigna, UnitedHealth) > 50% of prescription dispensing. CVS 21% of pharmacy retail revenues; Walgreens ~20%."
+    source: "Drug Channels 2025 Top 15 US Pharmacies"
 
   bms_penetration:
     value: 5
-    notes: "Medium; chain-level standardization."
+    rationale: "Chain-level standardization. Pharmacy refrigeration (vaccine cold chain) is regulated and instrumented. HVAC and lighting less so."
+    source: "Industry experience; cold-chain compliance requirements"
 
   pain_points:
     - "HVAC comfort"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 230 }
     US:
       sites:           { low: 95000, high: 105000, nominal: 100000 }
+      sites_rationale: "CVS + Walgreens + Health Mart + others ≈ 24,000 chain pharmacy sites. Including pharmacies inside grocery/big-box/Walmart pushes total to ~95k–105k."
       implementation:  { addressable_pct: 20, avg_ticket_usd: 16000 }
       subscription:    { addressable_pct: 30, arpu_monthly_usd: 300 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 5
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

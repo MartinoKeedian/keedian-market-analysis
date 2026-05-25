@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: distribution
 display_name: "Distribution Centers"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 50
+    high: 200
+    rationale: "Top 10 US 3PLs ≈ $90B revenue (ex-Amazon). Add Amazon's own network + Walmart's + Target's + Costco's. Plus thousands of regional 3PLs. ~50–200 operators with meaningful multi-DC footprint."
+    source: "Technavio US 3PL 2026-2030 forecast; Armstrong & Associates"
+
   typical_site_sqft:
     low: 108000
     high: 1615000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: mixed
-    notes: "Amazon-scale players + many regional 3PLs."
+    rationale: "Amazon dwarfs the rest ($172B); top 10 3PLs (ex-Amazon) = $90B combined led by C.H. Robinson at $15B. 94% of Fortune 500 use at least one 3PL."
+    source: "Technavio 2026; DC Velocity"
 
   bms_penetration:
     value: 7
-    notes: "Most modern DCs instrumented; legacy ones less so."
+    rationale: "Modern DCs instrumented for lighting and refrigeration zones. Legacy warehouses less so. Cold chain DCs particularly well instrumented."
+    source: "Industry experience; cold storage compliance drives instrumentation"
 
   pain_points:
     - "Lighting energy across huge floorplate"
@@ -42,6 +50,7 @@ market_analysis:
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 560 }
     US:
       sites:           { low: 38000, high: 42000, nominal: 40000 }
+      sites_rationale: "CBRE / JLL estimates of 35–45k warehouse and distribution facilities >100k sqft in the US."
       implementation:  { addressable_pct: 15, avg_ticket_usd: 50000 }
       subscription:    { addressable_pct: 25, arpu_monthly_usd: 750 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 6
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary

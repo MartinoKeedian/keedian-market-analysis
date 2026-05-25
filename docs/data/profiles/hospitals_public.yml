@@ -1,18 +1,24 @@
-# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
-# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
-# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
+# Auto-populated by scripts/populate-from-csv.mjs (researched + preliminary values).
+# Brands_range, sites_us, BMS, concentration are grounded in 2026 industry sources.
+# Tickets, ARPU, addressable %, and CL/MX sites are still estimates — iterate.
 
 id: hospitals_public
 display_name: "Public Hospitals"
 kp_segment_id: null
 
-preliminary: true                       # remove this flag once you've reviewed all values
+preliminary: true
 
 inherited_cache:
-  source: null                          # populated by .github/workflows/sync-kp.yml
+  source: null
   _synced_at: null
 
 market_analysis:
+  brands_range:
+    low: 800
+    high: 1000
+    rationale: "AHA 2026: ~900 active health systems own or manage 6,000+ hospitals (avg ~6 per system). 5,121 community hospitals tracked; 2/3 are system-affiliated."
+    source: "AHA Fast Facts on US Hospitals 2026"
+
   typical_site_sqft:
     low: 215000
     high: 2150000
@@ -20,11 +26,13 @@ market_analysis:
 
   market_concentration:
     value: mixed
-    notes: "US fragmented across state networks; CA centralized."
+    rationale: "US fragmented across state networks and many independent / community hospital systems. CA more centralized via UC Health and Kaiser. HCA Healthcare is the largest for-profit operator."
+    source: "AHA Fast Facts 2026; Becker's Hospital Review 100 largest health systems 2026"
 
   bms_penetration:
     value: 9
-    notes: "Very high — life-critical, mandatory."
+    rationale: "Life-critical environments mandate BMS (OR temperature, ICU airflow, vaccine cold chain, IAQ). Joint Commission accreditation drives investment. EHR adoption hit 96% by 2021 — BMS comparable."
+    source: "Joint Commission standards; AHA 2026"
 
   pain_points:
     - "HVAC critical zones (OR, ICU)"
@@ -33,15 +41,16 @@ market_analysis:
 
   by_country:
     CL:
-      sites:           { low: 110, high: 150, nominal: 130 }
+      sites:           { low: 100, high: 140, nominal: 120 }
       implementation:  { addressable_pct: 8, avg_ticket_usd: 127500 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 1870 }
     MX:
-      sites:           { low: 830, high: 1120, nominal: 980 }
+      sites:           { low: 780, high: 1050, nominal: 920 }
       implementation:  { addressable_pct: 8, avg_ticket_usd: 120000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 1650 }
     US:
-      sites:           { low: 6180, high: 6830, nominal: 6500 }
+      sites:           { low: 5800, high: 6410, nominal: 6100 }
+      sites_rationale: "AHA 2026: total US hospitals."
       implementation:  { addressable_pct: 8, avg_ticket_usd: 150000 }
       subscription:    { addressable_pct: 20, arpu_monthly_usd: 2200 }
 
@@ -54,6 +63,10 @@ market_analysis:
       sustainment_upside: 9
 
   validation_status:
+    brands_range: researched
+    bms_penetration: researched
+    market_concentration: researched
+    by_country.US.sites: researched
     by_country.CL: preliminary
     by_country.MX: preliminary
     by_country.US.implementation: preliminary
