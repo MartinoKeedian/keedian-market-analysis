@@ -1,57 +1,60 @@
-# Profile template — copy this file to create a new profile.
-# Filename = <id>.yml, where <id> is snake_case and unique.
-#
-# The inherited_cache block is auto-populated by .github/workflows/sync-kp.yml
-# when kp_segment_id is set. Do not edit inherited_cache by hand.
-#
-# All market_analysis fields are the source of truth here; KP does not see them.
+# Auto-populated by scripts/populate-from-csv.mjs (preliminary values).
+# US numbers grounded in 01_G2M2026_Energy_PrioritizationMap_v01.csv where available.
+# Tickets, ARPU, addressable %, and CL/MX sites are estimates — iterate.
 
 id: gyms
 display_name: "Gyms / Fitness Centers"
-kp_segment_id: null                     # set to a key in KP segments.yml to enable mirror; null otherwise
+kp_segment_id: null
+
+preliminary: true                       # remove this flag once you've reviewed all values
 
 inherited_cache:
-  source: null                          # "kp:segments.yml#<id>" once mirror runs
+  source: null                          # populated by .github/workflows/sync-kp.yml
   _synced_at: null
-  # populated by sync-kp.yml:
-  # blurb, reference_customer, status, products_developed, differences
 
 market_analysis:
   typical_site_sqft:
-    low: null
-    high: null
-    nominal: null
+    low: 4300
+    high: 54000
+    nominal: 15000
 
   market_concentration:
-    value: null                         # fragmented | mixed | concentrated
-    notes: ""
+    value: mixed
+    notes: "Planet Fitness / Anytime Fitness at scale; boutique fragmented."
 
   bms_penetration:
-    value: null                         # 1–10
-    notes: ""
+    value: 5
+    notes: "Medium; chain-dependent."
 
-  pain_points: []                       # short list, max 5
+  pain_points:
+    - "HVAC intensive use"
+    - "Lighting"
 
   by_country:
     CL:
-      sites:           { low: null, high: null, nominal: null }
-      implementation:  { addressable_pct: null, avg_ticket_usd: null }
-      subscription:    { addressable_pct: null, arpu_monthly_usd: null }
+      sites:           { low: 380, high: 520, nominal: 450 }
+      implementation:  { addressable_pct: 15, avg_ticket_usd: 15300 }
+      subscription:    { addressable_pct: 25, arpu_monthly_usd: 260 }
     MX:
-      sites:           { low: null, high: null, nominal: null }
-      implementation:  { addressable_pct: null, avg_ticket_usd: null }
-      subscription:    { addressable_pct: null, arpu_monthly_usd: null }
+      sites:           { low: 3060, high: 4140, nominal: 3600 }
+      implementation:  { addressable_pct: 15, avg_ticket_usd: 14400 }
+      subscription:    { addressable_pct: 25, arpu_monthly_usd: 230 }
     US:
-      sites:           { low: null, high: null, nominal: null }
-      implementation:  { addressable_pct: null, avg_ticket_usd: null }
-      subscription:    { addressable_pct: null, arpu_monthly_usd: null }
+      sites:           { low: 42800, high: 47300, nominal: 45000 }
+      implementation:  { addressable_pct: 15, avg_ticket_usd: 18000 }
+      subscription:    { addressable_pct: 25, arpu_monthly_usd: 300 }
 
-  feasibility_inputs:                   # 1–10 each
-    need_perception: null
+  feasibility_inputs:
+    need_perception: 6
     delivery_capacity:
-      hw_gap: null
-      similar_clients_exist: null
-      bms_penetration_effect: null
-      sustainment_upside: null
+      hw_gap: 3
+      similar_clients_exist: 3
+      bms_penetration_effect: 5
+      sustainment_upside: 4
 
-  validation_status: {}                 # field_path → validated | pending
+  validation_status:
+    by_country.CL: preliminary
+    by_country.MX: preliminary
+    by_country.US.implementation: preliminary
+    by_country.US.subscription: preliminary
+    feasibility_inputs.delivery_capacity: preliminary
