@@ -135,12 +135,38 @@ function assembleProfile(row, countryRows, feasRows) {
         sites_rationale: c.sites_rationale,
         implementation: { addressable_pct: numOrNull(c.impl_addressable_pct), avg_ticket_usd: numOrNull(c.impl_avg_ticket_usd) },
         subscription: { addressable_pct: numOrNull(c.sub_addressable_pct), arpu_monthly_usd: numOrNull(c.sub_arpu_monthly_usd) },
+        // Per-country attributes moved here from profiles in 0003 migration.
+        typical_site_sqft: {
+          low: c.typical_site_sqft_low,
+          high: c.typical_site_sqft_high,
+          nominal: c.typical_site_sqft_nominal,
+        },
+        market_concentration: {
+          value: c.market_concentration_value,
+          rationale: c.market_concentration_rationale,
+          source: c.market_concentration_source,
+        },
+        bms_penetration: {
+          value: c.bms_penetration_value,
+          rationale: c.bms_penetration_rationale,
+          source: c.bms_penetration_source,
+        },
+        brands_range: {
+          low: c.brands_range_low,
+          high: c.brands_range_high,
+          rationale: c.brands_range_rationale,
+          source: c.brands_range_source,
+        },
       };
     } else {
       byCountry[code] = {
         sites: { low: null, high: null, nominal: null },
         implementation: { addressable_pct: null, avg_ticket_usd: null },
         subscription: { addressable_pct: null, arpu_monthly_usd: null },
+        typical_site_sqft: { low: null, high: null, nominal: null },
+        market_concentration: { value: null, rationale: null, source: null },
+        bms_penetration: { value: null, rationale: null, source: null },
+        brands_range: { low: null, high: null, rationale: null, source: null },
       };
     }
   }
@@ -152,31 +178,9 @@ function assembleProfile(row, countryRows, feasRows) {
     preliminary: row.preliminary,
     inherited_cache: { source: null, _synced_at: null },
     market_analysis: {
-      brands_range: {
-        low: row.brands_range_low,
-        high: row.brands_range_high,
-        rationale: row.brands_range_rationale,
-        source: row.brands_range_source,
-      },
-      typical_site_sqft: {
-        low: row.typical_site_sqft_low,
-        high: row.typical_site_sqft_high,
-        nominal: row.typical_site_sqft_nominal,
-      },
-      market_concentration: {
-        value: row.market_concentration_value,
-        rationale: row.market_concentration_rationale,
-        source: row.market_concentration_source,
-      },
-      bms_penetration: {
-        value: row.bms_penetration_value,
-        rationale: row.bms_penetration_rationale,
-        source: row.bms_penetration_source,
-      },
       pain_points: row.pain_points || [],
       by_country: byCountry,
       // Array of up to 6 feasibility rows (3 countries × 2 project types).
-      // Each row has: id, country_code, project_type, 5 input fields.
       feasibility: feasRows.map((r) => ({
         id: r.id,
         country_code: r.country_code,
@@ -221,6 +225,58 @@ function mergeKpInherited(profile, kpSegments) {
     status: kpData.status,
     products_developed: kpData.products_developed || [],
     differences: kpData.differences || {},
+  };
+}
+
+// Aggregate per-country values for the "All" view of the master table.
+// Returns { brands_range, typical_site_sqft, market_concentration, bms_penetration }
+// computed across CL+MX+US.
+export function aggregateAttrsAllCountries(profile) {
+  const by = profile.market_analysis?.by_country || {};
+  const codes = ['CL', 'MX', 'US'];
+  const data = codes.map((c) => by[c]).filter((x) => x);
+
+  const lowVals = data.map((d) => d.brands_range?.low).filter((v) => v != null);
+  const highVals = data.map((d) => d.brands_range?.high).filter((v) => v != null);
+  const concVals = data.map((d) => d.market_concentration?.value).filter(Boolean);
+  const uniqueConc = [...new Set(concVals)];
+
+  // BMS: weighted average by sites nominal
+  let bmsTotal = 0, bmsWeight = 0;
+  for (const d of data) {
+    const bms = d.bms_penetration?.value;
+    const sites = d.sites?.nominal ?? 0;
+    if (bms != null && sites > 0) {
+      bmsTotal += bms * sites;
+      bmsWeight += sites;
+    }
+  }
+  const bmsAvg = bmsWeight > 0 ? bmsTotal / bmsWeight : null;
+
+  // sqft: weighted average of nominal
+  let sqftTotal = 0, sqftWeight = 0;
+  for (const d of data) {
+    const sq = d.typical_site_sqft?.nominal;
+    const sites = d.sites?.nominal ?? 0;
+    if (sq != null && sites > 0) {
+      sqftTotal += sq * sites;
+      sqftWeight += sites;
+    }
+  }
+  const sqftAvg = sqftWeight > 0 ? Math.round(sqftTotal / sqftWeight) : null;
+
+  return {
+    brands_range: {
+      low: lowVals.length ? Math.min(...lowVals) : null,
+      high: highVals.length ? Math.max(...highVals) : null,
+    },
+    typical_site_sqft: { nominal: sqftAvg },
+    market_concentration: {
+      value: uniqueConc.length === 1 ? uniqueConc[0] : (uniqueConc.length > 1 ? 'varies' : null),
+    },
+    bms_penetration: {
+      value: bmsAvg != null ? Math.round(bmsAvg * 10) / 10 : null,
+    },
   };
 }
 

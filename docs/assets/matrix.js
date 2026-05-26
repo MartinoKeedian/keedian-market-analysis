@@ -5,8 +5,9 @@
 import {
   loadAll, getProfileDisplayName, getProfileStatus, isProfileInKP,
   updateCountryDataField, updateProfileField, updateFeasibilityField,
+  aggregateAttrsAllCountries,
   getCurrentUser,
-} from './data-loader.js?v=2';
+} from './data-loader.js?v=3';
 import {
   computeImpactUsd,
   normalizeImpactAxis,
@@ -431,21 +432,28 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
   const isSelected = p.id === selectedId;
   // Country-specific editing only in CL/MX/US tables, not in "All" sum.
   const editCountry = country !== 'all' ? country : null;
-  const cdRowId = editCountry ? m.by_country?.[editCountry]?._id : null;
-  // ed() is the global helper defined below — uses escapeAttr for safe values.
-  const concVal = m.market_concentration?.value;
-  const bmsVal = m.bms_penetration?.value;
+  const cd = editCountry ? m.by_country?.[editCountry] : null;
+  const cdRowId = cd?._id;
+  // Per-country attributes — now live inside by_country[code] (0003 migration).
+  // For the All view, aggregate across countries.
+  const attrs = editCountry ? {
+    brands_range: cd?.brands_range || {},
+    market_concentration: cd?.market_concentration || {},
+    bms_penetration: cd?.bms_penetration || {},
+  } : aggregateAttrsAllCountries(p);
+  const concVal = attrs.market_concentration?.value;
+  const bmsVal = attrs.bms_penetration?.value;
   // Feasibility inputs averaged per country (across impl + sub). Read-only in table;
   // editing happens in the drill-down where each (country, type) cell is exposed.
   const fi = feasibilityInputsForCountry(p, country);
 
-  const bmsTitle = escapeAttr(`${m.bms_penetration?.rationale || ''}\nSource: ${m.bms_penetration?.source || '—'}`);
-  const concTitle = escapeAttr(`${m.market_concentration?.rationale || ''}\nSource: ${m.market_concentration?.source || '—'}`);
-  const brandsTitle = escapeAttr(`${m.brands_range?.rationale || ''}\nSource: ${m.brands_range?.source || '—'}`);
+  const bmsTitle = escapeAttr(`${attrs.bms_penetration?.rationale || (editCountry ? '' : 'Weighted average across countries (by sites).')}\nSource: ${attrs.bms_penetration?.source || '—'}`);
+  const concTitle = escapeAttr(`${attrs.market_concentration?.rationale || (editCountry ? '' : '"varies" if countries differ.')}\nSource: ${attrs.market_concentration?.source || '—'}`);
+  const brandsTitle = escapeAttr(`${attrs.brands_range?.rationale || (editCountry ? '' : 'Range across countries (min low to max high).')}\nSource: ${attrs.brands_range?.source || '—'}`);
   const sitesTitle = escapeAttr(`${view.sites_notes || ''}`);
 
-  const concBadge = m.market_concentration?.value
-    ? `<span class="conc-badge conc-${m.market_concentration.value}">${m.market_concentration.value}</span>`
+  const concBadge = concVal
+    ? `<span class="conc-badge conc-${concVal === 'varies' ? 'mixed' : concVal}">${concVal}</span>`
     : '—';
 
   const quadrantLabel = quadrant ? labels[quadrant] : '—';
@@ -459,21 +467,23 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
       </td>
       ${showGeneral ? `
         <td class="num" title="${brandsTitle}">
-          <span ${ed('profiles', p.id, 'brands_range_low', 'number', m.brands_range?.low)}>${fmtNum(m.brands_range?.low) || '—'}</span>
-          <span class="range-sep">–</span>
-          <span ${ed('profiles', p.id, 'brands_range_high', 'number', m.brands_range?.high)}>${fmtNum(m.brands_range?.high) || '—'}</span>
+          ${editCountry ? `
+            <span ${ed('country_data', cdRowId, 'brands_range_low', 'number', attrs.brands_range?.low)}>${fmtNum(attrs.brands_range?.low) || '—'}</span>
+            <span class="range-sep">–</span>
+            <span ${ed('country_data', cdRowId, 'brands_range_high', 'number', attrs.brands_range?.high)}>${fmtNum(attrs.brands_range?.high) || '—'}</span>
+          ` : `${fmtNum(attrs.brands_range?.low) || '—'}<span class="range-sep">–</span>${fmtNum(attrs.brands_range?.high) || '—'}`}
         </td>
         <td class="num"
-            ${editCountry ? ed('country_data', cdRowId, 'sites_nominal', 'number', m.by_country?.[editCountry]?.sites?.nominal) : ''}
+            ${editCountry ? ed('country_data', cdRowId, 'sites_nominal', 'number', cd?.sites?.nominal) : ''}
             title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
         <td class="num bms-cell"
-            ${ed('profiles', p.id, 'bms_penetration_value', 'number-1-10', bmsVal)}
+            ${editCountry ? ed('country_data', cdRowId, 'bms_penetration_value', 'number-1-10', bmsVal) : ''}
             title="${bmsTitle}">${bmsVal ?? '—'}</td>
-        <td ${ed('profiles', p.id, 'market_concentration_value', 'enum-concentration', concVal)}
+        <td ${editCountry ? ed('country_data', cdRowId, 'market_concentration_value', 'enum-concentration', concVal) : ''}
             title="${concTitle}">${concBadge}</td>
       ` : `
         <td class="num"
-            ${editCountry ? ed('country_data', cdRowId, 'sites_nominal', 'number', m.by_country?.[editCountry]?.sites?.nominal) : ''}
+            ${editCountry ? ed('country_data', cdRowId, 'sites_nominal', 'number', cd?.sites?.nominal) : ''}
             title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
       `}
       ${showImplDetail ? `
@@ -716,19 +726,6 @@ function applyLocalUpdate(table, recordId, field, value) {
       case 'kp_segment_id': p.kp_segment_id = value; break;
       case 'preliminary': p.preliminary = value; break;
       case 'pain_points': m.pain_points = value; break;
-      case 'typical_site_sqft_low': m.typical_site_sqft.low = value; break;
-      case 'typical_site_sqft_high': m.typical_site_sqft.high = value; break;
-      case 'typical_site_sqft_nominal': m.typical_site_sqft.nominal = value; break;
-      case 'market_concentration_value': m.market_concentration.value = value; break;
-      case 'market_concentration_rationale': m.market_concentration.rationale = value; break;
-      case 'market_concentration_source': m.market_concentration.source = value; break;
-      case 'bms_penetration_value': m.bms_penetration.value = value; break;
-      case 'bms_penetration_rationale': m.bms_penetration.rationale = value; break;
-      case 'bms_penetration_source': m.bms_penetration.source = value; break;
-      case 'brands_range_low': m.brands_range.low = value; break;
-      case 'brands_range_high': m.brands_range.high = value; break;
-      case 'brands_range_rationale': m.brands_range.rationale = value; break;
-      case 'brands_range_source': m.brands_range.source = value; break;
     }
   } else if (table === 'country_data') {
     for (const p of state.profiles) {
@@ -744,6 +741,19 @@ function applyLocalUpdate(table, recordId, field, value) {
             case 'impl_avg_ticket_usd': cd.implementation.avg_ticket_usd = value; break;
             case 'sub_addressable_pct': cd.subscription.addressable_pct = value; break;
             case 'sub_arpu_monthly_usd': cd.subscription.arpu_monthly_usd = value; break;
+            case 'typical_site_sqft_low': cd.typical_site_sqft.low = value; break;
+            case 'typical_site_sqft_high': cd.typical_site_sqft.high = value; break;
+            case 'typical_site_sqft_nominal': cd.typical_site_sqft.nominal = value; break;
+            case 'market_concentration_value': cd.market_concentration.value = value; break;
+            case 'market_concentration_rationale': cd.market_concentration.rationale = value; break;
+            case 'market_concentration_source': cd.market_concentration.source = value; break;
+            case 'bms_penetration_value': cd.bms_penetration.value = value; break;
+            case 'bms_penetration_rationale': cd.bms_penetration.rationale = value; break;
+            case 'bms_penetration_source': cd.bms_penetration.source = value; break;
+            case 'brands_range_low': cd.brands_range.low = value; break;
+            case 'brands_range_high': cd.brands_range.high = value; break;
+            case 'brands_range_rationale': cd.brands_range.rationale = value; break;
+            case 'brands_range_source': cd.brands_range.source = value; break;
           }
           return;
         }
@@ -875,20 +885,7 @@ function ed(table, recordId, field, type, value) {
 
 function marketBlockHtml(p) {
   const m = p.market_analysis || {};
-  const sqft = m.typical_site_sqft || {};
-  const conc = m.market_concentration || {};
-  const bms = m.bms_penetration || {};
-  const brands = m.brands_range || {};
   const pains = m.pain_points || [];
-
-  const editVal = (field, type, val, display) =>
-    `<span class="editable-text" ${ed('profiles', p.id, field, type, val)}>${display ?? (val ?? '—')}</span>`;
-
-  const editText = (field, val) =>
-    `<span class="editable-text editable-long" ${ed('profiles', p.id, field, 'text', val)}>${escapeHtml(val || '—')}</span>`;
-
-  const editTextarea = (field, val) =>
-    `<div class="editable-block" ${ed('profiles', p.id, field, 'textarea', val)}>${escapeHtml(val || '—')}</div>`;
 
   const editPainPoints = (val) =>
     `<div class="editable-block" ${ed('profiles', p.id, 'pain_points', 'pain-points', (val || []).join('|'))}>${
@@ -899,66 +896,74 @@ function marketBlockHtml(p) {
 
   const countryCard = (code, label) => {
     const c = (m.by_country || {})[code] || {};
+    const cdId = c._id;
     const s = c.sites || {};
     const i = c.implementation || {};
     const sub = c.subscription || {};
-    const cdId = c._id;
+    const sqft = c.typical_site_sqft || {};
+    const brands = c.brands_range || {};
+    const conc = c.market_concentration || {};
+    const bms = c.bms_penetration || {};
+
     const editC = (field, type, val, display) =>
       cdId ? `<span class="editable-text" ${ed('country_data', cdId, field, type, val)}>${display ?? (val ?? '—')}</span>` : `<span>${display ?? (val ?? '—')}</span>`;
     const editCText = (field, val) =>
       cdId ? `<div class="editable-block" ${ed('country_data', cdId, field, 'textarea', val)}>${escapeHtml(val || '—')}</div>` : `<div>${escapeHtml(val || '—')}</div>`;
+    const editCSrc = (field, val) =>
+      cdId ? `<span class="editable-text" ${ed('country_data', cdId, field, 'text', val)}>${escapeHtml(val || '—')}</span>` : `<span>${escapeHtml(val || '—')}</span>`;
 
     return `
-      <div class="country-card">
+      <div class="country-card country-card-wide">
         <h4>${label}</h4>
+
+        <h5>Market structure</h5>
         <dl class="kv compact">
-          <dt>Sites — low</dt><dd>${editC('sites_low', 'number', s.low)}</dd>
-          <dt>Sites — high</dt><dd>${editC('sites_high', 'number', s.high)}</dd>
-          <dt>Sites — nominal</dt><dd>${editC('sites_nominal', 'number', s.nominal)}</dd>
-          <dt>Sites rationale</dt><dd>${editCText('sites_rationale', c.sites_rationale)}</dd>
-          <dt>Impl addressable %</dt><dd>${editC('impl_addressable_pct', 'number-decimal', i.addressable_pct, fmtPct(i.addressable_pct))}</dd>
-          <dt>Impl avg ticket (USD)</dt><dd>${editC('impl_avg_ticket_usd', 'number-decimal', i.avg_ticket_usd, fmtUsdRaw(i.avg_ticket_usd))}</dd>
-          <dt>Sub addressable %</dt><dd>${editC('sub_addressable_pct', 'number-decimal', sub.addressable_pct, fmtPct(sub.addressable_pct))}</dd>
-          <dt>Sub ARPU / month (USD)</dt><dd>${editC('sub_arpu_monthly_usd', 'number-decimal', sub.arpu_monthly_usd, fmtUsdRaw(sub.arpu_monthly_usd))}</dd>
+          <dt>Brands (low–high)</dt><dd>${editC('brands_range_low', 'number', brands.low)} <span class="range-sep">–</span> ${editC('brands_range_high', 'number', brands.high)}</dd>
+          <dt>Brands rationale</dt><dd>${editCText('brands_range_rationale', brands.rationale)}</dd>
+          <dt>Brands source</dt><dd>${editCSrc('brands_range_source', brands.source)}</dd>
+          <dt>Market concentration</dt><dd>${cdId ? `<span class="editable-text" ${ed('country_data', cdId, 'market_concentration_value', 'enum-concentration', conc.value)}>${conc.value || '—'}</span>` : (conc.value || '—')}</dd>
+          <dt>Concentration rationale</dt><dd>${editCText('market_concentration_rationale', conc.rationale)}</dd>
+          <dt>Concentration source</dt><dd>${editCSrc('market_concentration_source', conc.source)}</dd>
+        </dl>
+
+        <h5>Site profile</h5>
+        <dl class="kv compact">
+          <dt>Typical site size — low (ft²)</dt><dd>${editC('typical_site_sqft_low', 'number', sqft.low)}</dd>
+          <dt>Typical site size — high (ft²)</dt><dd>${editC('typical_site_sqft_high', 'number', sqft.high)}</dd>
+          <dt>Typical site size — nominal (ft²)</dt><dd>${editC('typical_site_sqft_nominal', 'number', sqft.nominal)}</dd>
+          <dt>BMS penetration (1–10)</dt><dd>${editC('bms_penetration_value', 'number-1-10', bms.value)}</dd>
+          <dt>BMS rationale</dt><dd>${editCText('bms_penetration_rationale', bms.rationale)}</dd>
+          <dt>BMS source</dt><dd>${editCSrc('bms_penetration_source', bms.source)}</dd>
+        </dl>
+
+        <h5>Sites</h5>
+        <dl class="kv compact">
+          <dt>Low</dt><dd>${editC('sites_low', 'number', s.low)}</dd>
+          <dt>High</dt><dd>${editC('sites_high', 'number', s.high)}</dd>
+          <dt>Nominal</dt><dd>${editC('sites_nominal', 'number', s.nominal)}</dd>
+          <dt>Rationale</dt><dd>${editCText('sites_rationale', c.sites_rationale)}</dd>
+        </dl>
+
+        <h5>Implementation economics</h5>
+        <dl class="kv compact">
+          <dt>Addressable %</dt><dd>${editC('impl_addressable_pct', 'number-decimal', i.addressable_pct, fmtPct(i.addressable_pct))}</dd>
+          <dt>Avg ticket (USD)</dt><dd>${editC('impl_avg_ticket_usd', 'number-decimal', i.avg_ticket_usd, fmtUsdRaw(i.avg_ticket_usd))}</dd>
+        </dl>
+
+        <h5>Subscription economics</h5>
+        <dl class="kv compact">
+          <dt>Addressable %</dt><dd>${editC('sub_addressable_pct', 'number-decimal', sub.addressable_pct, fmtPct(sub.addressable_pct))}</dd>
+          <dt>ARPU / month (USD)</dt><dd>${editC('sub_arpu_monthly_usd', 'number-decimal', sub.arpu_monthly_usd, fmtUsdRaw(sub.arpu_monthly_usd))}</dd>
         </dl>
       </div>
     `;
   };
 
   return `
-    <h3>Typical site size (ft²)</h3>
-    <dl class="kv compact">
-      <dt>Low</dt><dd>${editVal('typical_site_sqft_low', 'number', sqft.low)}</dd>
-      <dt>High</dt><dd>${editVal('typical_site_sqft_high', 'number', sqft.high)}</dd>
-      <dt>Nominal</dt><dd>${editVal('typical_site_sqft_nominal', 'number', sqft.nominal)}</dd>
-    </dl>
-
-    <h3>Brands range (operators)</h3>
-    <dl class="kv compact">
-      <dt>Low</dt><dd>${editVal('brands_range_low', 'number', brands.low)}</dd>
-      <dt>High</dt><dd>${editVal('brands_range_high', 'number', brands.high)}</dd>
-      <dt>Rationale</dt><dd>${editTextarea('brands_range_rationale', brands.rationale)}</dd>
-      <dt>Source</dt><dd>${editText('brands_range_source', brands.source)}</dd>
-    </dl>
-
-    <h3>Market concentration</h3>
-    <dl class="kv compact">
-      <dt>Value</dt><dd><span class="editable-text" ${ed('profiles', p.id, 'market_concentration_value', 'enum-concentration', conc.value)}>${conc.value || '—'}</span></dd>
-      <dt>Rationale</dt><dd>${editTextarea('market_concentration_rationale', conc.rationale)}</dd>
-      <dt>Source</dt><dd>${editText('market_concentration_source', conc.source)}</dd>
-    </dl>
-
-    <h3>BMS penetration</h3>
-    <dl class="kv compact">
-      <dt>Value (1–10)</dt><dd>${editVal('bms_penetration_value', 'number-1-10', bms.value)}</dd>
-      <dt>Rationale</dt><dd>${editTextarea('bms_penetration_rationale', bms.rationale)}</dd>
-      <dt>Source</dt><dd>${editText('bms_penetration_source', bms.source)}</dd>
-    </dl>
-
-    <h3>Pain points <span class="muted small">(one per line when editing)</span></h3>
+    <h3>Pain points <span class="muted small">(profile-level, one per line when editing)</span></h3>
     ${editPainPoints(pains)}
 
-    <h3>By country</h3>
+    <h3>By country <span class="muted small">(brands, BMS, concentration, site size, sites, economics — all per country)</span></h3>
     <div class="country-grid">
       ${countryCard('CL', 'Chile')}
       ${countryCard('MX', 'Mexico')}
