@@ -580,14 +580,19 @@ function escapeHtml(s) {
 let editingCell = null;
 
 function bindEditing() {
+  // Capture phase: run BEFORE row-level click handlers that would rebuild
+  // the DOM (selectProfile → render). Without capture: the row handler
+  // fires first, render() wipes the cell, and our document-level handler
+  // then sees a detached target → no edit ever opens.
   document.addEventListener('click', async (e) => {
     const cell = e.target.closest('[data-editable="true"]');
     if (!cell) return;
-    if (editingCell) return;                                   // already editing another
+    if (editingCell) return;
     if (!document.body.classList.contains('auth-signed-in')) return;
     if (cell.querySelector('input, select')) return;
+    e.stopPropagation();                                       // prevent row handler from firing
     startEdit(cell);
-  });
+  }, true);
 }
 
 function startEdit(cell) {
