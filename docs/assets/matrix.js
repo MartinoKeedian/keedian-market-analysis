@@ -353,7 +353,7 @@ function drawMasterTable(rows, axes, country, mode, containerId, totalsId) {
   const generalCols = showGeneral ? 4 : 1;
   const implCols = showImplDetail ? 3 : 1;
   const subCols = showSubDetail ? 3 : 1;
-  const feasInputsCols = showFeasInputs ? 5 : 1;
+  const feasInputsCols = showFeasInputs ? 2 : 1; // 2 active inputs only (was 5)
 
   const expandBtn = (group, isCollapsed) =>
     `<button class="expand-btn" data-group="${group}" title="${isCollapsed ? 'Expand' : 'Collapse'} columns">${isCollapsed ? '▶' : '▼'}</button>`;
@@ -399,12 +399,9 @@ function drawMasterTable(rows, axes, country, mode, containerId, totalsId) {
             <th>Quadrant</th>
             <th class="num highlight-score">Score</th>
             ${showFeasInputs ? `
-              <th class="num" title="Need perception">Need</th>
-              <th class="num" title="HW gap (raw — inverted in scoring)">HW&nbsp;gap</th>
-              <th class="num" title="Similar clients exist">Sim.</th>
-              <th class="num" title="BMS penetration effect (raw — sign by mode)">BMS&nbsp;eff.</th>
-              <th class="num" title="Sustainment upside">Sust.</th>
-            ` : `<th class="num" title="Composite (expand to see inputs)">—</th>`}
+              <th class="num" title="Perceived Need (weight 0.60)">Need</th>
+              <th class="num" title="Product GAP / HW gap (weight 0.40, inverted in scoring)">Product&nbsp;GAP</th>
+            ` : `<th class="num" title="Composite (expand to see the 2 inputs)">—</th>`}
           </tr>
         </thead>
         <tbody>
@@ -511,9 +508,6 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
       ${showFeasInputs ? `
         <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.need_perception)}</td>
         <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.hw_gap)}</td>
-        <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.similar_clients_exist)}</td>
-        <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.bms_penetration_effect)}</td>
-        <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.sustainment_upside)}</td>
       ` : `
         <td class="num muted">—</td>
       `}
@@ -1001,12 +995,10 @@ function feasibilitySectionHtml(p, countryFilter) {
   if (rows.length === 0) return '<section class="drill-section"><p class="muted">No feasibility data.</p></section>';
 
   const COUNTRY_LABEL = { CL: 'Chile', MX: 'Mexico', US: 'United States' };
+  // Only the two active inputs. The other 3 are deprecated but kept in DB.
   const INPUT_LABELS = {
-    need_perception: 'Need perception',
-    hw_gap: 'HW gap / Product GAP',
-    similar_clients_exist: 'Similar clients exist',
-    bms_penetration_effect: 'BMS penetration effect',
-    sustainment_upside: 'Sustainment upside',
+    need_perception: 'Perceived Need',
+    hw_gap: 'Product GAP',
   };
 
   const countriesToShow = countryFilter && countryFilter !== 'all' ? [countryFilter] : ['CL', 'MX', 'US'];

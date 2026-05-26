@@ -25,11 +25,11 @@ impact:
 feasibility:
   scale: 10                          # all inputs are 1–10
   weights:                           # must sum to 1.0; the UI enforces this
-    need_perception: 0.30
-    hw_gap: 0.25
-    similar_clients_exist: 0.20
-    bms_penetration_effect: 0.10
-    sustainment_upside: 0.15
+    need_perception: 0.60            # primary driver
+    hw_gap: 0.40                     # product/HW capability gap
+    similar_clients_exist: 0         # deprecated; kept at 0 to preserve schema
+    bms_penetration_effect: 0        # deprecated
+    sustainment_upside: 0            # deprecated
 
   # BMS penetration effect changes sign depending on the revenue mode.
   bms_penetration_effect:
