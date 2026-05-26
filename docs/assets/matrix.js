@@ -27,7 +27,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusEl = document.getElementById('status-msg');
   try {
     state = await loadAll();
-    const srcLabel = state.dataSource === 'supabase' ? 'Supabase (live)' : 'YAML (fallback — expose `kma` schema in Supabase to enable edits)';
+    const srcLabel = state.dataSource === 'supabase'
+      ? 'Supabase (live — edits enabled when signed in)'
+      : `YAML (fallback — ${state.dataSourceError && state.dataSourceError.includes('Invalid schema') ? 'expose `kma` schema in Supabase to enable edits' : 'Supabase unavailable'})`;
     statusEl.textContent = `Data source: ${srcLabel}.`;
     statusEl.className = `status-msg ${state.dataSource === 'supabase' ? 'success' : 'warn'}`;
     bindFilters();

@@ -63,13 +63,20 @@ export async function loadAll() {
   // Try Supabase first
   let profiles = null;
   let dataSource = 'yaml';
+  let dataSourceError = null;
   const client = await getSupabaseClient();
   if (client) {
     try {
       profiles = await loadFromSupabase(client);
       dataSource = 'supabase';
     } catch (err) {
-      console.warn('Supabase read failed, falling back to YAML:', err.message || err);
+      const msg = err.message || String(err);
+      dataSourceError = msg;
+      if (msg.includes('Invalid schema') || msg.includes('PGRST106')) {
+        console.warn('Supabase schema "kma" not exposed yet. Add it in Settings → API → Exposed schemas to enable edits. Falling back to YAML.');
+      } else {
+        console.warn('Supabase read failed, falling back to YAML:', msg);
+      }
     }
   }
 
@@ -88,6 +95,7 @@ export async function loadAll() {
     profiles,
     kpAvailable: kpSegments !== null,
     dataSource,
+    dataSourceError,
   };
 }
 
