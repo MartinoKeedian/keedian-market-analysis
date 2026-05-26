@@ -6,7 +6,7 @@ import {
   loadAll, getProfileDisplayName, getProfileStatus, isProfileInKP,
   updateCountryDataField, updateProfileField, updateFeasibilityField,
   getCurrentUser,
-} from './data-loader.js';
+} from './data-loader.js?v=2';
 import {
   computeImpactUsd,
   normalizeImpactAxis,
@@ -14,7 +14,7 @@ import {
   feasibilityInputsForCountry,
   classifyQuadrant,
   fmtUsd,
-} from './scoring.js';
+} from './scoring.js?v=2';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const KP_BASE = 'https://roiams.github.io/KeedianProductization';

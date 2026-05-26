@@ -2,7 +2,7 @@
 // Renders sign-in button or signed-in email + sign-out, and emits an
 // 'kma:auth-changed' event when state changes (matrix.js listens).
 
-import { getSupabaseClient, signInWithMagicLink, signOut, getCurrentUser } from './data-loader.js';
+import { getSupabaseClient, signInWithMagicLink, signOut, getCurrentUser } from './data-loader.js?v=2';
 
 document.addEventListener('DOMContentLoaded', async () => {
   await renderAuthState();
