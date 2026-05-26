@@ -4,6 +4,10 @@ name: sync-kp
 # Pages site (public) can read them without needing a token in the browser.
 # Required secret: KP_MIRROR_TOKEN — a fine-grained PAT with read access to
 # roiams/KeedianProductization (contents:read is enough).
+#
+# Safety: each fetch writes to a temp file first and only replaces the
+# real target if the temp file is non-empty. Prevents the workflow from
+# corrupting the repo when KP_MIRROR_TOKEN is missing or lacks access.
 
 on:
   schedule:
@@ -19,36 +23,66 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch segments.yml from KP
+      - name: Refuse to run without KP_MIRROR_TOKEN
+        env:
+          KP_MIRROR_TOKEN: ${{ secrets.KP_MIRROR_TOKEN }}
+        run: |
+          if [[ -z "$KP_MIRROR_TOKEN" ]]; then
+            echo "::warning::KP_MIRROR_TOKEN secret not set — skipping mirror entirely. Nothing has been overwritten."
+            exit 0
+          fi
+
+      - name: Fetch segments.yml from KP (safe overwrite)
+        if: ${{ secrets.KP_MIRROR_TOKEN != '' }}
         env:
           GH_TOKEN: ${{ secrets.KP_MIRROR_TOKEN }}
         run: |
           mkdir -p docs/data/_kp-mirror
-          gh api repos/roiams/KeedianProductization/contents/data/segments.yml \
-            --jq '.content' | base64 -d > docs/data/_kp-mirror/segments.yml
+          tmp=$(mktemp)
+          if gh api repos/roiams/KeedianProductization/contents/data/segments.yml --jq '.content' | base64 -d > "$tmp" && [ -s "$tmp" ]; then
+            mv "$tmp" docs/data/_kp-mirror/segments.yml
+            echo "segments.yml mirrored ($(wc -c < docs/data/_kp-mirror/segments.yml) bytes)"
+          else
+            echo "::warning::segments.yml fetch failed or empty — not overwriting"
+            rm -f "$tmp"
+          fi
 
-      - name: Fetch styles.css from KP
+      - name: Fetch styles.css from KP (safe overwrite)
+        if: ${{ secrets.KP_MIRROR_TOKEN != '' }}
         env:
           GH_TOKEN: ${{ secrets.KP_MIRROR_TOKEN }}
         run: |
-          gh api repos/roiams/KeedianProductization/contents/docs/shared/styles.css \
-            --jq '.content' | base64 -d > docs/assets/styles.css
+          tmp=$(mktemp)
+          if gh api repos/roiams/KeedianProductization/contents/docs/shared/styles.css --jq '.content' | base64 -d > "$tmp" && [ -s "$tmp" ]; then
+            mv "$tmp" docs/assets/styles.css
+            echo "styles.css mirrored ($(wc -c < docs/assets/styles.css) bytes)"
+          else
+            echo "::warning::styles.css fetch failed or empty — not overwriting"
+            rm -f "$tmp"
+          fi
 
-      - name: Fetch logos from KP
+      - name: Fetch logos from KP (safe overwrite)
+        if: ${{ secrets.KP_MIRROR_TOKEN != '' }}
         env:
           GH_TOKEN: ${{ secrets.KP_MIRROR_TOKEN }}
         run: |
-          gh api repos/roiams/KeedianProductization/contents/docs/shared/keedian-logo.png \
-            --jq '.content' | base64 -d > docs/assets/keedian-logo.png
-          gh api repos/roiams/KeedianProductization/contents/docs/shared/keedian-logo-white.png \
-            --jq '.content' | base64 -d > docs/assets/keedian-logo-white.png
+          for name in keedian-logo.png keedian-logo-white.png; do
+            tmp=$(mktemp)
+            if gh api repos/roiams/KeedianProductization/contents/docs/shared/$name --jq '.content' | base64 -d > "$tmp" && [ -s "$tmp" ]; then
+              mv "$tmp" docs/assets/$name
+              echo "$name mirrored ($(wc -c < docs/assets/$name) bytes)"
+            else
+              echo "::warning::$name fetch failed or empty — not overwriting"
+              rm -f "$tmp"
+            fi
+          done
 
       - name: Commit if changed
         run: |
           git config user.name "kma-mirror-bot"
           git config user.email "noreply@keedian.com"
           if [[ -n "$(git status --porcelain)" ]]; then
-            git add docs/data/_kp-mirror/ docs/assets/styles.css docs/assets/keedian-logo*.png
+            git add docs/data/_kp-mirror/ docs/assets/styles.css docs/assets/keedian-logo*.png || true
             git commit -m "chore: sync KP mirror ($(date -u +%Y-%m-%d))"
             git push
           else
