@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Keedian — Market Size Marimekko</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./assets/styles.css">
+<link rel="stylesheet" href="./assets/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="./index.html" class="brand">
+      <img src="./assets/keedian-logo.png" alt="Keedian" class="brand-logo">
+      <span class="brand-divider"></span>
+      <span class="brand-context">Market Analysis · Marimekko</span>
+    </a>
+    <div class="topbar-meta">
+      <a href="./index.html">← Back to matrix</a>
+      <span class="brand-divider"></span>
+      <a href="./criteria.html">Criteria reference →</a>
+      <span class="brand-divider"></span>
+      <a href="./parameters.html">Parameters →</a>
+    </div>
+  </div>
+</header>
+
+<main class="kma-main">
+  <header class="page-head">
+    <h1>Market Size Marimekko</h1>
+    <p class="lead">Each rectangle's area is proportional to its market size in USD. Columns are countries (width = country share). Inside each column, rows are profiles (height = profile share within that country). Click a rectangle to drill down. Toggle filters to recompute proportions in real time.</p>
+  </header>
+
+  <section class="filter-bar mm-filters">
+    <label>Mode
+      <select id="mm-mode">
+        <option value="full" selected>Full (impl + sub)</option>
+        <option value="subscription_only">Subscription only</option>
+        <option value="implementation_only">Implementation only</option>
+      </select>
+    </label>
+    <label>Orientation
+      <select id="mm-orient">
+        <option value="country_x" selected>Country on X (default)</option>
+        <option value="profile_x">Profile on X</option>
+      </select>
+    </label>
+    <button id="mm-toggle-all-countries" class="btn-secondary">All countries</button>
+    <button id="mm-toggle-all-profiles" class="btn-secondary">All profiles</button>
+    <span id="mm-status" class="status-msg"></span>
+  </section>
+
+  <section class="mm-controls">
+    <div class="mm-filter-block">
+      <h3>Countries</h3>
+      <div id="mm-country-checks" class="mm-checks"></div>
+    </div>
+    <div class="mm-filter-block">
+      <h3>Profiles</h3>
+      <div id="mm-profile-checks" class="mm-checks"></div>
+    </div>
+  </section>
+
+  <section class="mm-chart-wrap">
+    <svg id="mm-svg" role="img" aria-label="Market Size Marimekko"></svg>
+  </section>
+
+  <section class="mm-totals" id="mm-totals"></section>
+</main>
+
+<div class="footer">
+  Marimekko · totals are sums of implementation + subscription × horizon. Edit horizon in <a href="./parameters.html">Parameters</a>.
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<script type="module" src="./assets/marimekko.js"></script>
+</body>
+</html>

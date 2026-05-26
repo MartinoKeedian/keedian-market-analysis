@@ -127,9 +127,9 @@ function drawScatter(rows, axes) {
   const svg = document.getElementById('matrix-svg');
   svg.innerHTML = '';
 
-  const W = 1000;
-  const H = 640;
-  const M = { top: 30, right: 220, bottom: 50, left: 60 };
+  const W = 1200;
+  const H = 700;
+  const M = { top: 30, right: 180, bottom: 50, left: 60 };
   const innerW = W - M.left - M.right;
   const innerH = H - M.top - M.bottom;
 
@@ -233,10 +233,16 @@ function drawScatter(rows, axes) {
     circle.setAttribute('r', isSelected ? r + 3 : r);
     g.appendChild(circle);
 
+    // Auto-flip label to the left of the dot if near the right edge.
+    const labelText = getProfileDisplayName(row.profile);
+    const approxLabelWidth = labelText.length * 6;
+    const flipLeft = x + r + 4 + approxLabelWidth > M.left + innerW + 30;
     const label = document.createElementNS(SVG_NS, 'text');
-    label.setAttribute('x', x + r + 4); label.setAttribute('y', y + 4);
+    label.setAttribute('x', flipLeft ? x - r - 4 : x + r + 4);
+    label.setAttribute('y', y + 4);
+    label.setAttribute('text-anchor', flipLeft ? 'end' : 'start');
     label.setAttribute('class', `dot-label${isSelected ? ' selected' : ''}`);
-    label.textContent = getProfileDisplayName(row.profile);
+    label.textContent = labelText;
     g.appendChild(label);
 
     const title = document.createElementNS(SVG_NS, 'title');
@@ -284,27 +290,52 @@ function drawLegend(rows) {
 
 const COUNTRIES = ['CL', 'MX', 'US'];
 const HORIZON_DEFAULT = 3;
+const TABLE_COLLAPSED_KEY = 'kma:table:collapsed:v2';
+const DEFAULT_COLLAPSED = { impl_market: true, sub_market: true, feas_inputs: true };
+
+function getTableCollapsed() {
+  try {
+    const raw = localStorage.getItem(TABLE_COLLAPSED_KEY);
+    return raw ? { ...DEFAULT_COLLAPSED, ...JSON.parse(raw) } : { ...DEFAULT_COLLAPSED };
+  } catch {
+    return { ...DEFAULT_COLLAPSED };
+  }
+}
+function setTableCollapsed(state) {
+  try { localStorage.setItem(TABLE_COLLAPSED_KEY, JSON.stringify(state)); } catch {}
+}
 
 function drawMasterTable(rows, axes, country, mode) {
   const t = { impact: axes.xThreshold, feasibility: axes.yThreshold };
   const labels = state.scoring.display.quadrant_labels;
   const horizon = state.scoring.impact.subscription_horizon_years ?? HORIZON_DEFAULT;
-  const countryLabel = country === 'all' ? 'all' : country;
+  const countryLabel = country === 'all' ? 'all (sum)' : country;
+  const collapsed = getTableCollapsed();
 
-  // Pre-compute table rows
   const tableRows = rows.map((r) => {
     const view = computeTableRow(r.profile, country, mode, horizon);
     const quadrant = r.hasData ? classifyQuadrant(r.impact10, r.feasibility10, t) : null;
     return { row: r, view, quadrant };
   });
-
-  // Sort default: by Impact desc.
   tableRows.sort((a, b) => (b.row.impactUsd || 0) - (a.row.impactUsd || 0));
+
+  // Determine which sub-columns to render per group.
+  const showImplDetail = !collapsed.impl_market;
+  const showSubDetail = !collapsed.sub_market;
+  const showFeasInputs = !collapsed.feas_inputs;
+
+  // Compute colspans
+  const implCols = showImplDetail ? 3 : 1;
+  const subCols = showSubDetail ? 3 : 1;
+  const feasInputsCols = showFeasInputs ? 5 : 0;
+
+  const expandBtn = (group, isCollapsed) =>
+    `<button class="expand-btn" data-group="${group}" title="${isCollapsed ? 'Expand' : 'Collapse'} columns">${isCollapsed ? '▶' : '▼'}</button>`;
 
   const sectionEl = document.getElementById('master-table-wrap');
   sectionEl.innerHTML = `
     <div class="table-meta">
-      <span class="muted small">Showing data for <strong>${countryLabel}</strong> · mode <strong>${mode}</strong> · subscription horizon ${horizon}y. Click a row to drill down. Hover cells for source.</span>
+      <span class="muted small">Showing data for <strong>${countryLabel}</strong> · mode <strong>${mode}</strong> · subscription horizon ${horizon}y. Click a row to drill down. Hover cells for source. Use ▶/▼ to expand groups.</span>
     </div>
     <div class="master-table-scroll">
       <table class="master-table">
@@ -312,48 +343,63 @@ function drawMasterTable(rows, axes, country, mode) {
           <tr class="group-header">
             <th rowspan="2" class="sticky-col">Profile</th>
             <th colspan="4">General data</th>
-            <th colspan="3">Implementation</th>
-            <th colspan="3">Subscription (annual, Essential approx.)</th>
-            <th colspan="2">Impact</th>
-            <th colspan="2">Quadrant · Feasibility</th>
-            <th colspan="5">Feasibility inputs (1–10)</th>
+            <th colspan="${implCols}">Implementation market size ${expandBtn('impl_market', !showImplDetail)}</th>
+            <th colspan="${subCols}">Subscription market size (annual, Essential approx.) ${expandBtn('sub_market', !showSubDetail)}</th>
+            <th colspan="2">Total market size (Impact)</th>
+            <th colspan="2">Quadrant &amp; Feasibility score</th>
+            ${feasInputsCols > 0 ? `<th colspan="${feasInputsCols}">Feasibility inputs (1–10) ${expandBtn('feas_inputs', !showFeasInputs)}</th>` : `<th>Feasibility inputs ${expandBtn('feas_inputs', !showFeasInputs)}</th>`}
           </tr>
           <tr class="sub-header">
             <th class="num">Brands</th>
             <th class="num">Sites</th>
             <th class="num" title="Building Management System / IoT penetration (1–10).">BMS</th>
             <th>Concentration</th>
-            <th class="num">%&nbsp;Sites</th>
-            <th class="num">$/ticket</th>
-            <th class="num">Total&nbsp;impl.</th>
-            <th class="num">%&nbsp;Sites</th>
-            <th class="num">$/yr/site</th>
-            <th class="num">Total&nbsp;sub.</th>
+            ${showImplDetail ? `
+              <th class="num">%&nbsp;Sites</th>
+              <th class="num">$/ticket</th>
+              <th class="num">Total&nbsp;impl.</th>
+            ` : `<th class="num">Total&nbsp;impl.</th>`}
+            ${showSubDetail ? `
+              <th class="num">%&nbsp;Sites</th>
+              <th class="num">$/yr/site</th>
+              <th class="num">Total&nbsp;sub.</th>
+            ` : `<th class="num">Total&nbsp;sub.</th>`}
             <th class="num">USD</th>
             <th class="num">1–10</th>
             <th>Quadrant</th>
             <th class="num">Score</th>
-            <th class="num" title="Need perception">Need</th>
-            <th class="num" title="HW gap (raw — inverted in scoring)">HW gap</th>
-            <th class="num" title="Similar clients exist">Sim.</th>
-            <th class="num" title="BMS penetration effect (raw — sign by mode)">BMS&nbsp;eff.</th>
-            <th class="num" title="Sustainment upside">Sust.</th>
+            ${showFeasInputs ? `
+              <th class="num" title="Need perception">Need</th>
+              <th class="num" title="HW gap (raw — inverted in scoring)">HW&nbsp;gap</th>
+              <th class="num" title="Similar clients exist">Sim.</th>
+              <th class="num" title="BMS penetration effect (raw — sign by mode)">BMS&nbsp;eff.</th>
+              <th class="num" title="Sustainment upside">Sust.</th>
+            ` : ''}
           </tr>
         </thead>
         <tbody>
-          ${tableRows.map((tr) => renderTableRow(tr, labels)).join('')}
+          ${tableRows.map((tr) => renderTableRow(tr, labels, showImplDetail, showSubDetail, showFeasInputs)).join('')}
         </tbody>
       </table>
     </div>
   `;
 
-  // Wire up clicks.
   sectionEl.querySelectorAll('tr.data-row').forEach((trEl) => {
     trEl.addEventListener('click', () => selectProfile(trEl.dataset.id));
   });
+  sectionEl.querySelectorAll('.expand-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const group = btn.dataset.group;
+      const cur = getTableCollapsed();
+      cur[group] = !cur[group];
+      setTableCollapsed(cur);
+      render();
+    });
+  });
 }
 
-function renderTableRow({ row, view, quadrant }, labels) {
+function renderTableRow({ row, view, quadrant }, labels, showImplDetail, showSubDetail, showFeasInputs) {
   const p = row.profile;
   const m = p.market_analysis || {};
   const isSelected = p.id === selectedId;
@@ -380,21 +426,27 @@ function renderTableRow({ row, view, quadrant }, labels) {
       <td class="num" title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
       <td class="num bms-cell" title="${bmsTitle}">${m.bms_penetration?.value ?? '—'}</td>
       <td title="${concTitle}">${concBadge}</td>
-      <td class="num">${fmtPct(view.impl_addr)}</td>
-      <td class="num">${fmtUsd(view.impl_ticket)}</td>
+      ${showImplDetail ? `
+        <td class="num">${fmtPct(view.impl_addr)}</td>
+        <td class="num">${fmtUsd(view.impl_ticket)}</td>
+      ` : ''}
       <td class="num strong">${fmtUsd(view.impl_total)}</td>
-      <td class="num">${fmtPct(view.sub_addr)}</td>
-      <td class="num">${fmtUsd(view.sub_arpu_annual)}</td>
+      ${showSubDetail ? `
+        <td class="num">${fmtPct(view.sub_addr)}</td>
+        <td class="num">${fmtUsd(view.sub_arpu_annual)}</td>
+      ` : ''}
       <td class="num strong">${fmtUsd(view.sub_total)}</td>
       <td class="num strong">${fmtUsd(view.impact_usd)}</td>
       <td class="num">${row.impact10 != null ? row.impact10.toFixed(1) : '—'}</td>
       <td><span class="qbadge ${quadrantClass}">${quadrantLabel}</span></td>
       <td class="num strong">${row.feasibility10 != null ? row.feasibility10.toFixed(1) : '—'}</td>
-      <td class="num">${m.feasibility_inputs?.need_perception ?? '—'}</td>
-      <td class="num">${m.feasibility_inputs?.delivery_capacity?.hw_gap ?? '—'}</td>
-      <td class="num">${m.feasibility_inputs?.delivery_capacity?.similar_clients_exist ?? '—'}</td>
-      <td class="num">${m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect ?? '—'}</td>
-      <td class="num">${m.feasibility_inputs?.delivery_capacity?.sustainment_upside ?? '—'}</td>
+      ${showFeasInputs ? `
+        <td class="num">${m.feasibility_inputs?.need_perception ?? '—'}</td>
+        <td class="num">${m.feasibility_inputs?.delivery_capacity?.hw_gap ?? '—'}</td>
+        <td class="num">${m.feasibility_inputs?.delivery_capacity?.similar_clients_exist ?? '—'}</td>
+        <td class="num">${m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect ?? '—'}</td>
+        <td class="num">${m.feasibility_inputs?.delivery_capacity?.sustainment_upside ?? '—'}</td>
+      ` : ''}
     </tr>
   `;
 }
