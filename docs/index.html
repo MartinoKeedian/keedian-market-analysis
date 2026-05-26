@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex,nofollow" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>Keedian — Market & Customer Profile Analysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,14 +42,6 @@
   </header>
 
   <section class="filter-bar">
-    <label>Country
-      <select id="country-filter">
-        <option value="all" selected>All (sum)</option>
-        <option value="CL">Chile</option>
-        <option value="MX">Mexico</option>
-        <option value="US">United States</option>
-      </select>
-    </label>
     <label>Mode
       <select id="mode-filter">
         <option value="full" selected>Full (impl + sub)</option>
@@ -54,6 +49,7 @@
         <option value="implementation_only">Implementation only</option>
       </select>
     </label>
+    <span class="muted small">Scoring (Impact 1–10, Feasibility 1–10) is computed globally and consistent across the four tables below.</span>
     <span id="status-msg" class="status-msg"></span>
   </section>
 
@@ -63,9 +59,36 @@
   </section>
 
   <section class="master-table-section">
-    <h2>All profiles · master table</h2>
-    <p class="lead">One row per profile. Click a row to drill down. Hover over cells with values to see the source and rationale. Sort by impact by default; the country and mode filters above apply to per-country values and totals.</p>
-    <div id="master-table-wrap"></div>
+    <h2>Master tables — by country</h2>
+    <p class="lead">One table per country plus a sum across all three. Same columns, same row order. Click a row to drill down. Hover cells for source rationale. Expand groups via the ▶ buttons in the headers — state is shared across all four tables.</p>
+
+    <details open class="country-table-wrap" id="country-wrap-all">
+      <summary>
+        <span class="country-tab-label">All (sum) <span class="country-tab-sub" id="totals-all"></span></span>
+      </summary>
+      <div id="master-table-all"></div>
+    </details>
+
+    <details class="country-table-wrap" id="country-wrap-US">
+      <summary>
+        <span class="country-tab-label">United States <span class="country-tab-sub" id="totals-US"></span></span>
+      </summary>
+      <div id="master-table-US"></div>
+    </details>
+
+    <details class="country-table-wrap" id="country-wrap-MX">
+      <summary>
+        <span class="country-tab-label">Mexico <span class="country-tab-sub" id="totals-MX"></span></span>
+      </summary>
+      <div id="master-table-MX"></div>
+    </details>
+
+    <details class="country-table-wrap" id="country-wrap-CL">
+      <summary>
+        <span class="country-tab-label">Chile <span class="country-tab-sub" id="totals-CL"></span></span>
+      </summary>
+      <div id="master-table-CL"></div>
+    </details>
   </section>
 
   <section id="selected-profile" class="selected-profile" hidden>
@@ -78,6 +101,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-<script type="module" src="./assets/matrix.js"></script>
+<script type="module" src="./assets/matrix.js?v=3"></script>
 </body>
 </html>

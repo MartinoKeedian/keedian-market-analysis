@@ -38,23 +38,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function bindFilters() {
-  document.getElementById('country-filter').addEventListener('change', render);
   document.getElementById('mode-filter').addEventListener('change', render);
 }
 
 function currentFilters() {
   return {
-    country: document.getElementById('country-filter').value,
+    country: 'all',
     mode: document.getElementById('mode-filter').value,
   };
 }
 
 function render() {
   const { country, mode } = currentFilters();
-  lastRows = scoreAllProfiles(country, mode);
+  lastRows = scoreAllProfiles('all', mode);
   const axes = computeAxes(lastRows, state.scoring);
   drawScatter(lastRows, axes);
-  drawMasterTable(lastRows, axes, country, mode);
+  // 4 tables: All, US, MX, CL. Scoring is global; per-country values change.
+  drawMasterTable(lastRows, axes, 'all', mode, 'master-table-all', 'totals-all');
+  drawMasterTable(lastRows, axes, 'US', mode, 'master-table-US', 'totals-US');
+  drawMasterTable(lastRows, axes, 'MX', mode, 'master-table-MX', 'totals-MX');
+  drawMasterTable(lastRows, axes, 'CL', mode, 'master-table-CL', 'totals-CL');
   if (selectedId) drawSelectedProfile(selectedId);
 }
 
@@ -290,8 +293,8 @@ function drawLegend(rows) {
 
 const COUNTRIES = ['CL', 'MX', 'US'];
 const HORIZON_DEFAULT = 3;
-const TABLE_COLLAPSED_KEY = 'kma:table:collapsed:v2';
-const DEFAULT_COLLAPSED = { impl_market: true, sub_market: true, feas_inputs: true };
+const TABLE_COLLAPSED_KEY = 'kma:table:collapsed:v3';
+const DEFAULT_COLLAPSED = { general_data: false, impl_market: true, sub_market: true, feas_inputs: true };
 
 function getTableCollapsed() {
   try {
@@ -305,11 +308,10 @@ function setTableCollapsed(state) {
   try { localStorage.setItem(TABLE_COLLAPSED_KEY, JSON.stringify(state)); } catch {}
 }
 
-function drawMasterTable(rows, axes, country, mode) {
+function drawMasterTable(rows, axes, country, mode, containerId, totalsId) {
   const t = { impact: axes.xThreshold, feasibility: axes.yThreshold };
   const labels = state.scoring.display.quadrant_labels;
   const horizon = state.scoring.impact.subscription_horizon_years ?? HORIZON_DEFAULT;
-  const countryLabel = country === 'all' ? 'all (sum)' : country;
   const collapsed = getTableCollapsed();
 
   const tableRows = rows.map((r) => {
@@ -317,68 +319,74 @@ function drawMasterTable(rows, axes, country, mode) {
     const quadrant = r.hasData ? classifyQuadrant(r.impact10, r.feasibility10, t) : null;
     return { row: r, view, quadrant };
   });
-  tableRows.sort((a, b) => (b.row.impactUsd || 0) - (a.row.impactUsd || 0));
+  // Sort by per-country impact descending (each table has its own ranking).
+  tableRows.sort((a, b) => (b.view.impact_usd || 0) - (a.view.impact_usd || 0));
 
-  // Determine which sub-columns to render per group.
+  // Determine visible sub-columns per group.
+  const showGeneral = !collapsed.general_data;
   const showImplDetail = !collapsed.impl_market;
   const showSubDetail = !collapsed.sub_market;
   const showFeasInputs = !collapsed.feas_inputs;
 
-  // Compute colspans
+  const generalCols = showGeneral ? 4 : 1;
   const implCols = showImplDetail ? 3 : 1;
   const subCols = showSubDetail ? 3 : 1;
-  const feasInputsCols = showFeasInputs ? 5 : 0;
+  const feasInputsCols = showFeasInputs ? 5 : 1;
 
   const expandBtn = (group, isCollapsed) =>
     `<button class="expand-btn" data-group="${group}" title="${isCollapsed ? 'Expand' : 'Collapse'} columns">${isCollapsed ? '▶' : '▼'}</button>`;
 
-  const sectionEl = document.getElementById('master-table-wrap');
+  // Country grand total for the summary line
+  const grandUsd = tableRows.reduce((s, r) => s + (r.view.impact_usd || 0), 0);
+  const totalsEl = totalsId ? document.getElementById(totalsId) : null;
+  if (totalsEl) totalsEl.textContent = `· total ${fmtUsd(grandUsd)}`;
+
+  const sectionEl = document.getElementById(containerId);
   sectionEl.innerHTML = `
-    <div class="table-meta">
-      <span class="muted small">Showing data for <strong>${countryLabel}</strong> · mode <strong>${mode}</strong> · subscription horizon ${horizon}y. Click a row to drill down. Hover cells for source. Use ▶/▼ to expand groups.</span>
-    </div>
     <div class="master-table-scroll">
       <table class="master-table">
         <thead>
           <tr class="group-header">
             <th rowspan="2" class="sticky-col">Profile</th>
-            <th colspan="4">General<br>data</th>
+            <th colspan="${generalCols}">General<br>data ${expandBtn('general_data', !showGeneral)}</th>
             <th colspan="${implCols}">Implementation<br>market ${expandBtn('impl_market', !showImplDetail)}</th>
             <th colspan="${subCols}">Subscription<br>market <span class="group-sub">/yr · Essential</span> ${expandBtn('sub_market', !showSubDetail)}</th>
             <th colspan="2">Total<br>impact</th>
             <th colspan="2">Quadrant ·<br>Feasibility</th>
-            ${feasInputsCols > 0 ? `<th colspan="${feasInputsCols}">Feasibility<br>inputs ${expandBtn('feas_inputs', !showFeasInputs)}</th>` : `<th>Feas.<br>inputs ${expandBtn('feas_inputs', !showFeasInputs)}</th>`}
+            <th colspan="${feasInputsCols}">Feasibility<br>inputs ${expandBtn('feas_inputs', !showFeasInputs)}</th>
           </tr>
           <tr class="sub-header">
-            <th class="num">Brands</th>
-            <th class="num">Sites</th>
-            <th class="num" title="Building Management System / IoT penetration (1–10).">BMS</th>
-            <th>Concentration</th>
+            ${showGeneral ? `
+              <th class="num">Brands</th>
+              <th class="num">Sites</th>
+              <th class="num" title="Building Management System / IoT penetration (1–10).">BMS</th>
+              <th>Concentration</th>
+            ` : `<th class="num">Sites</th>`}
             ${showImplDetail ? `
               <th class="num">%&nbsp;Sites</th>
               <th class="num">$/ticket</th>
-              <th class="num">Total&nbsp;impl.</th>
-            ` : `<th class="num">Total&nbsp;impl.</th>`}
+              <th class="num highlight-total">Total&nbsp;impl.</th>
+            ` : `<th class="num highlight-total">Total&nbsp;impl.</th>`}
             ${showSubDetail ? `
               <th class="num">%&nbsp;Sites</th>
               <th class="num">$/yr/site</th>
-              <th class="num">Total&nbsp;sub.</th>
-            ` : `<th class="num">Total&nbsp;sub.</th>`}
-            <th class="num">USD</th>
-            <th class="num">1–10</th>
+              <th class="num highlight-total">Total&nbsp;sub.</th>
+            ` : `<th class="num highlight-total">Total&nbsp;sub.</th>`}
+            <th class="num highlight-total">USD</th>
+            <th class="num highlight-axis">1–10</th>
             <th>Quadrant</th>
-            <th class="num">Score</th>
+            <th class="num highlight-score">Score</th>
             ${showFeasInputs ? `
               <th class="num" title="Need perception">Need</th>
               <th class="num" title="HW gap (raw — inverted in scoring)">HW&nbsp;gap</th>
               <th class="num" title="Similar clients exist">Sim.</th>
               <th class="num" title="BMS penetration effect (raw — sign by mode)">BMS&nbsp;eff.</th>
               <th class="num" title="Sustainment upside">Sust.</th>
-            ` : ''}
+            ` : `<th class="num" title="Composite (expand to see inputs)">—</th>`}
           </tr>
         </thead>
         <tbody>
-          ${tableRows.map((tr) => renderTableRow(tr, labels, showImplDetail, showSubDetail, showFeasInputs)).join('')}
+          ${tableRows.map((tr) => renderTableRow(tr, labels, showGeneral, showImplDetail, showSubDetail, showFeasInputs)).join('')}
         </tbody>
       </table>
     </div>
@@ -390,6 +398,7 @@ function drawMasterTable(rows, axes, country, mode) {
   sectionEl.querySelectorAll('.expand-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      e.preventDefault();
       const group = btn.dataset.group;
       const cur = getTableCollapsed();
       cur[group] = !cur[group];
@@ -399,7 +408,7 @@ function drawMasterTable(rows, axes, country, mode) {
   });
 }
 
-function renderTableRow({ row, view, quadrant }, labels, showImplDetail, showSubDetail, showFeasInputs) {
+function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDetail, showSubDetail, showFeasInputs) {
   const p = row.profile;
   const m = p.market_analysis || {};
   const isSelected = p.id === selectedId;
@@ -422,31 +431,37 @@ function renderTableRow({ row, view, quadrant }, labels, showImplDetail, showSub
         <span class="status-dot status-${getProfileStatus(p)}"></span>
         ${escapeHtml(getProfileDisplayName(p))}
       </td>
-      <td class="num" title="${brandsTitle}">${fmtRange(m.brands_range?.low, m.brands_range?.high)}</td>
-      <td class="num" title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
-      <td class="num bms-cell" title="${bmsTitle}">${m.bms_penetration?.value ?? '—'}</td>
-      <td title="${concTitle}">${concBadge}</td>
+      ${showGeneral ? `
+        <td class="num" title="${brandsTitle}">${fmtRange(m.brands_range?.low, m.brands_range?.high)}</td>
+        <td class="num" title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
+        <td class="num bms-cell" title="${bmsTitle}">${m.bms_penetration?.value ?? '—'}</td>
+        <td title="${concTitle}">${concBadge}</td>
+      ` : `
+        <td class="num" title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
+      `}
       ${showImplDetail ? `
         <td class="num">${fmtPct(view.impl_addr)}</td>
         <td class="num">${fmtUsd(view.impl_ticket)}</td>
       ` : ''}
-      <td class="num strong">${fmtUsd(view.impl_total)}</td>
+      <td class="num strong highlight-total">${fmtUsd(view.impl_total)}</td>
       ${showSubDetail ? `
         <td class="num">${fmtPct(view.sub_addr)}</td>
         <td class="num">${fmtUsd(view.sub_arpu_annual)}</td>
       ` : ''}
-      <td class="num strong">${fmtUsd(view.sub_total)}</td>
-      <td class="num strong">${fmtUsd(view.impact_usd)}</td>
-      <td class="num">${row.impact10 != null ? row.impact10.toFixed(1) : '—'}</td>
+      <td class="num strong highlight-total">${fmtUsd(view.sub_total)}</td>
+      <td class="num strong highlight-total">${fmtUsd(view.impact_usd)}</td>
+      <td class="num highlight-axis">${row.impact10 != null ? row.impact10.toFixed(1) : '—'}</td>
       <td><span class="qbadge ${quadrantClass}">${quadrantLabel}</span></td>
-      <td class="num strong">${row.feasibility10 != null ? row.feasibility10.toFixed(1) : '—'}</td>
+      <td class="num strong highlight-score">${row.feasibility10 != null ? row.feasibility10.toFixed(1) : '—'}</td>
       ${showFeasInputs ? `
         <td class="num">${m.feasibility_inputs?.need_perception ?? '—'}</td>
         <td class="num">${m.feasibility_inputs?.delivery_capacity?.hw_gap ?? '—'}</td>
         <td class="num">${m.feasibility_inputs?.delivery_capacity?.similar_clients_exist ?? '—'}</td>
         <td class="num">${m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect ?? '—'}</td>
         <td class="num">${m.feasibility_inputs?.delivery_capacity?.sustainment_upside ?? '—'}</td>
-      ` : ''}
+      ` : `
+        <td class="num muted">—</td>
+      `}
     </tr>
   `;
 }
