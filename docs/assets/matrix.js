@@ -425,10 +425,7 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
   // Country-specific editing only in CL/MX/US tables, not in "All" sum.
   const editCountry = country !== 'all' ? country : null;
   const cdRowId = editCountry ? m.by_country?.[editCountry]?._id : null;
-  const ed = (table, recordId, field, type, value) => {
-    if (!table || !recordId) return '';
-    return `data-editable="true" data-edit-table="${table}" data-edit-record="${recordId}" data-edit-field="${field}" data-edit-type="${type}" data-edit-value="${value == null ? '' : value}"`;
-  };
+  // ed() is the global helper defined below — uses escapeAttr for safe values.
   const concVal = m.market_concentration?.value;
   const bmsVal = m.bms_penetration?.value;
 
@@ -448,10 +445,14 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
     <tr class="data-row${isSelected ? ' selected' : ''}" data-id="${p.id}">
       <td class="sticky-col profile-name">
         <span class="status-dot status-${getProfileStatus(p)}"></span>
-        ${escapeHtml(getProfileDisplayName(p))}
+        <span ${ed('profiles', p.id, 'display_name', 'text', p.display_name)}>${escapeHtml(getProfileDisplayName(p))}</span>
       </td>
       ${showGeneral ? `
-        <td class="num" title="${brandsTitle}">${fmtRange(m.brands_range?.low, m.brands_range?.high)}</td>
+        <td class="num" title="${brandsTitle}">
+          <span ${ed('profiles', p.id, 'brands_range_low', 'number', m.brands_range?.low)}>${fmtNum(m.brands_range?.low) || '—'}</span>
+          <span class="range-sep">–</span>
+          <span ${ed('profiles', p.id, 'brands_range_high', 'number', m.brands_range?.high)}>${fmtNum(m.brands_range?.high) || '—'}</span>
+        </td>
         <td class="num"
             ${editCountry ? ed('country_data', cdRowId, 'sites_nominal', 'number', m.by_country?.[editCountry]?.sites?.nominal) : ''}
             title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
@@ -589,14 +590,31 @@ function startEdit(cell) {
       <option value="mixed" ${editValue === 'mixed' ? 'selected' : ''}>mixed</option>
       <option value="concentrated" ${editValue === 'concentrated' ? 'selected' : ''}>concentrated</option>
     `;
+  } else if (editType === 'textarea' || editType === 'pain-points') {
+    inputEl = document.createElement('textarea');
+    inputEl.rows = editType === 'pain-points' ? 5 : 4;
+    inputEl.value = editType === 'pain-points'
+      ? (editValue || '').split('|').join('\n')
+      : (editValue || '');
+  } else if (editType === 'text') {
+    inputEl = document.createElement('input');
+    inputEl.type = 'text';
+    inputEl.value = editValue || '';
+  } else if (editType === 'bool') {
+    inputEl = document.createElement('select');
+    inputEl.innerHTML = `
+      <option value="true" ${editValue === 'true' ? 'selected' : ''}>true</option>
+      <option value="false" ${editValue === 'false' ? 'selected' : ''}>false</option>
+    `;
   } else {
+    // number / number-1-10 / number-arpu-annual / number-decimal
     inputEl = document.createElement('input');
     inputEl.type = 'number';
     inputEl.value = editValue;
     if (editType === 'number-1-10') {
       inputEl.min = '1'; inputEl.max = '10'; inputEl.step = '1';
-    } else if (editType === 'number-arpu-annual') {
-      // shown as annual; saved as monthly. Convert in submitter.
+    } else if (editType === 'number-decimal') {
+      inputEl.step = 'any';
     }
   }
   inputEl.className = 'inline-edit';
@@ -610,16 +628,23 @@ function startEdit(cell) {
     if (finishing) return;
     finishing = true;
     if (save) {
-      const raw = inputEl.value.trim();
+      const raw = (inputEl.value ?? '').toString();
       let toSave;
       let field = editField;
       if (editType === 'number-arpu-annual') {
-        toSave = raw === '' ? null : parseFloat(raw) / 12;
+        const v = raw.trim();
+        toSave = v === '' ? null : parseFloat(v) / 12;
         field = 'sub_arpu_monthly_usd';
+      } else if (editType === 'pain-points') {
+        toSave = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+      } else if (editType === 'bool') {
+        toSave = raw === 'true';
       } else if (editType.startsWith('number')) {
-        toSave = raw === '' ? null : parseFloat(raw);
+        const v = raw.trim();
+        toSave = v === '' ? null : parseFloat(v);
       } else {
-        toSave = raw === '' ? null : raw;
+        const v = raw.trim();
+        toSave = v === '' ? null : raw;            // preserve internal whitespace for text/textarea
       }
       try {
         cell.classList.add('saving');
@@ -641,8 +666,16 @@ function startEdit(cell) {
   };
   inputEl.addEventListener('blur', () => finish(true));
   inputEl.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
-    else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+    if (ev.key === 'Enter' && !(inputEl.tagName === 'TEXTAREA' && !ev.metaKey && !ev.ctrlKey)) {
+      ev.preventDefault();
+      finish(true);
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      finish(false);
+    } else if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) {
+      ev.preventDefault();
+      finish(true);
+    }
   });
 }
 
@@ -658,18 +691,41 @@ function applyLocalUpdate(table, recordId, field, value) {
   if (table === 'profiles') {
     const p = state.profiles.find((x) => x.id === recordId);
     if (!p) return;
-    if (field === 'bms_penetration_value') p.market_analysis.bms_penetration.value = value;
-    if (field === 'market_concentration_value') p.market_analysis.market_concentration.value = value;
+    const m = p.market_analysis || {};
+    switch (field) {
+      case 'display_name': p.display_name = value; break;
+      case 'kp_segment_id': p.kp_segment_id = value; break;
+      case 'preliminary': p.preliminary = value; break;
+      case 'pain_points': m.pain_points = value; break;
+      case 'typical_site_sqft_low': m.typical_site_sqft.low = value; break;
+      case 'typical_site_sqft_high': m.typical_site_sqft.high = value; break;
+      case 'typical_site_sqft_nominal': m.typical_site_sqft.nominal = value; break;
+      case 'market_concentration_value': m.market_concentration.value = value; break;
+      case 'market_concentration_rationale': m.market_concentration.rationale = value; break;
+      case 'market_concentration_source': m.market_concentration.source = value; break;
+      case 'bms_penetration_value': m.bms_penetration.value = value; break;
+      case 'bms_penetration_rationale': m.bms_penetration.rationale = value; break;
+      case 'bms_penetration_source': m.bms_penetration.source = value; break;
+      case 'brands_range_low': m.brands_range.low = value; break;
+      case 'brands_range_high': m.brands_range.high = value; break;
+      case 'brands_range_rationale': m.brands_range.rationale = value; break;
+      case 'brands_range_source': m.brands_range.source = value; break;
+    }
   } else if (table === 'country_data') {
     for (const p of state.profiles) {
       for (const code of ['CL', 'MX', 'US']) {
         const cd = p.market_analysis?.by_country?.[code];
         if (cd && cd._id === recordId) {
-          if (field === 'sites_nominal') cd.sites.nominal = value;
-          if (field === 'impl_addressable_pct') cd.implementation.addressable_pct = value;
-          if (field === 'impl_avg_ticket_usd') cd.implementation.avg_ticket_usd = value;
-          if (field === 'sub_addressable_pct') cd.subscription.addressable_pct = value;
-          if (field === 'sub_arpu_monthly_usd') cd.subscription.arpu_monthly_usd = value;
+          switch (field) {
+            case 'sites_low': cd.sites.low = value; break;
+            case 'sites_high': cd.sites.high = value; break;
+            case 'sites_nominal': cd.sites.nominal = value; break;
+            case 'sites_rationale': cd.sites_rationale = value; break;
+            case 'impl_addressable_pct': cd.implementation.addressable_pct = value; break;
+            case 'impl_avg_ticket_usd': cd.implementation.avg_ticket_usd = value; break;
+            case 'sub_addressable_pct': cd.subscription.addressable_pct = value; break;
+            case 'sub_arpu_monthly_usd': cd.subscription.arpu_monthly_usd = value; break;
+          }
           return;
         }
       }
@@ -708,7 +764,7 @@ function drawSelectedProfile(id) {
   el.innerHTML = `
     <div class="selected-header">
       <div>
-        <h2>${getProfileDisplayName(p)} <span class="badge status-${status}">${status}</span></h2>
+        <h2><span class="editable-text" ${ed('profiles', p.id, 'display_name', 'text', p.display_name)}>${escapeHtml(getProfileDisplayName(p))}</span> <span class="badge status-${status}">${status}</span></h2>
         <p class="muted">${p.inherited_cache?.blurb || 'Market-analysis-only profile.'}</p>
         <p class="profile-meta">${kpLink} · <a href="./profile.html?id=${encodeURIComponent(p.id)}">Full profile page →</a></p>
       </div>
@@ -746,22 +802,31 @@ function drawSelectedProfile(id) {
 function feasibilityBreakdownHtml(p) {
   const f = p.market_analysis?.feasibility_inputs;
   if (!f) return '<p class="muted">No feasibility inputs.</p>';
+  const dc = f.delivery_capacity || {};
+  const cell = (field, value) =>
+    `<span ${ed('feasibility_inputs', p.id, field, 'number-1-10', value)}>${value ?? '—'}</span>`;
   const items = [
-    ['Need perception', f.need_perception],
-    ['HW gap (raw; inverted in scoring)', f.delivery_capacity?.hw_gap],
-    ['Similar clients exist', f.delivery_capacity?.similar_clients_exist],
-    ['BMS penetration effect (raw; sign by mode)', f.delivery_capacity?.bms_penetration_effect],
-    ['Sustainment upside', f.delivery_capacity?.sustainment_upside],
+    ['Need perception', cell('need_perception', f.need_perception)],
+    ['HW gap (raw; inverted in scoring)', cell('hw_gap', dc.hw_gap)],
+    ['Similar clients exist', cell('similar_clients_exist', dc.similar_clients_exist)],
+    ['BMS penetration effect (raw; sign by mode)', cell('bms_penetration_effect', dc.bms_penetration_effect)],
+    ['Sustainment upside', cell('sustainment_upside', dc.sustainment_upside)],
   ];
   return `
     <table class="scoring-table compact">
       <tbody>
         ${items.map(([k, v]) => `
-          <tr><td>${k}</td><td class="mono right">${v ?? '—'}</td></tr>
+          <tr><td>${k}</td><td class="mono right">${v}</td></tr>
         `).join('')}
       </tbody>
     </table>
   `;
+}
+
+// Helper used everywhere in the drill-down: emits the data-* attrs for an editable span.
+function ed(table, recordId, field, type, value) {
+  if (!table || !recordId) return '';
+  return `data-editable="true" data-edit-table="${table}" data-edit-record="${recordId}" data-edit-field="${field}" data-edit-type="${type}" data-edit-value="${value == null ? '' : escapeAttr(String(value))}"`;
 }
 
 function marketBlockHtml(p) {
@@ -769,38 +834,87 @@ function marketBlockHtml(p) {
   const sqft = m.typical_site_sqft || {};
   const conc = m.market_concentration || {};
   const bms = m.bms_penetration || {};
+  const brands = m.brands_range || {};
   const pains = m.pain_points || [];
+
+  const editVal = (field, type, val, display) =>
+    `<span class="editable-text" ${ed('profiles', p.id, field, type, val)}>${display ?? (val ?? '—')}</span>`;
+
+  const editText = (field, val) =>
+    `<span class="editable-text editable-long" ${ed('profiles', p.id, field, 'text', val)}>${escapeHtml(val || '—')}</span>`;
+
+  const editTextarea = (field, val) =>
+    `<div class="editable-block" ${ed('profiles', p.id, field, 'textarea', val)}>${escapeHtml(val || '—')}</div>`;
+
+  const editPainPoints = (val) =>
+    `<div class="editable-block" ${ed('profiles', p.id, 'pain_points', 'pain-points', (val || []).join('|'))}>${
+      (val || []).length
+        ? `<ul class="bullets">${val.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
+        : '—'
+    }</div>`;
 
   const countryCard = (code, label) => {
     const c = (m.by_country || {})[code] || {};
     const s = c.sites || {};
     const i = c.implementation || {};
     const sub = c.subscription || {};
+    const cdId = c._id;
+    const editC = (field, type, val, display) =>
+      cdId ? `<span class="editable-text" ${ed('country_data', cdId, field, type, val)}>${display ?? (val ?? '—')}</span>` : `<span>${display ?? (val ?? '—')}</span>`;
+    const editCText = (field, val) =>
+      cdId ? `<div class="editable-block" ${ed('country_data', cdId, field, 'textarea', val)}>${escapeHtml(val || '—')}</div>` : `<div>${escapeHtml(val || '—')}</div>`;
+
     return `
       <div class="country-card">
         <h4>${label}</h4>
         <dl class="kv compact">
-          <dt>Sites</dt>
-          <dd>${fmtRange(s.low, s.high)} <span class="muted">(nominal ${fmtNum(s.nominal)})</span></dd>
-          <dt>Impl addressable</dt><dd>${fmtPct(i.addressable_pct)}</dd>
-          <dt>Avg ticket</dt><dd>${fmtUsdRaw(i.avg_ticket_usd)}</dd>
-          <dt>Sub addressable</dt><dd>${fmtPct(sub.addressable_pct)}</dd>
-          <dt>ARPU / month</dt><dd>${fmtUsdRaw(sub.arpu_monthly_usd)}</dd>
+          <dt>Sites — low</dt><dd>${editC('sites_low', 'number', s.low)}</dd>
+          <dt>Sites — high</dt><dd>${editC('sites_high', 'number', s.high)}</dd>
+          <dt>Sites — nominal</dt><dd>${editC('sites_nominal', 'number', s.nominal)}</dd>
+          <dt>Sites rationale</dt><dd>${editCText('sites_rationale', c.sites_rationale)}</dd>
+          <dt>Impl addressable %</dt><dd>${editC('impl_addressable_pct', 'number-decimal', i.addressable_pct, fmtPct(i.addressable_pct))}</dd>
+          <dt>Impl avg ticket (USD)</dt><dd>${editC('impl_avg_ticket_usd', 'number-decimal', i.avg_ticket_usd, fmtUsdRaw(i.avg_ticket_usd))}</dd>
+          <dt>Sub addressable %</dt><dd>${editC('sub_addressable_pct', 'number-decimal', sub.addressable_pct, fmtPct(sub.addressable_pct))}</dd>
+          <dt>Sub ARPU / month (USD)</dt><dd>${editC('sub_arpu_monthly_usd', 'number-decimal', sub.arpu_monthly_usd, fmtUsdRaw(sub.arpu_monthly_usd))}</dd>
         </dl>
       </div>
     `;
   };
 
   return `
+    <h3>Typical site size (ft²)</h3>
     <dl class="kv compact">
-      <dt>Typical site size (ft²)</dt>
-      <dd>${fmtRange(sqft.low, sqft.high)} <span class="muted">(nominal ${fmtNum(sqft.nominal)})</span></dd>
-      <dt>Market concentration</dt><dd>${conc.value || '—'} ${conc.notes ? `<span class="muted">— ${conc.notes}</span>` : ''}</dd>
-      <dt>BMS penetration (1–10)</dt><dd>${bms.value ?? '—'} ${bms.notes ? `<span class="muted">— ${bms.notes}</span>` : ''}</dd>
-      <dt>Pain points</dt>
-      <dd>${pains.length ? `<ul class="bullets">${pains.map((p) => `<li>${p}</li>`).join('')}</ul>` : '—'}</dd>
+      <dt>Low</dt><dd>${editVal('typical_site_sqft_low', 'number', sqft.low)}</dd>
+      <dt>High</dt><dd>${editVal('typical_site_sqft_high', 'number', sqft.high)}</dd>
+      <dt>Nominal</dt><dd>${editVal('typical_site_sqft_nominal', 'number', sqft.nominal)}</dd>
     </dl>
-    <h4>By country</h4>
+
+    <h3>Brands range (operators)</h3>
+    <dl class="kv compact">
+      <dt>Low</dt><dd>${editVal('brands_range_low', 'number', brands.low)}</dd>
+      <dt>High</dt><dd>${editVal('brands_range_high', 'number', brands.high)}</dd>
+      <dt>Rationale</dt><dd>${editTextarea('brands_range_rationale', brands.rationale)}</dd>
+      <dt>Source</dt><dd>${editText('brands_range_source', brands.source)}</dd>
+    </dl>
+
+    <h3>Market concentration</h3>
+    <dl class="kv compact">
+      <dt>Value</dt><dd><span class="editable-text" ${ed('profiles', p.id, 'market_concentration_value', 'enum-concentration', conc.value)}>${conc.value || '—'}</span></dd>
+      <dt>Rationale</dt><dd>${editTextarea('market_concentration_rationale', conc.rationale)}</dd>
+      <dt>Source</dt><dd>${editText('market_concentration_source', conc.source)}</dd>
+    </dl>
+
+    <h3>BMS penetration</h3>
+    <dl class="kv compact">
+      <dt>Value (1–10)</dt><dd>${editVal('bms_penetration_value', 'number-1-10', bms.value)}</dd>
+      <dt>Rationale</dt><dd>${editTextarea('bms_penetration_rationale', bms.rationale)}</dd>
+      <dt>Source</dt><dd>${editText('bms_penetration_source', bms.source)}</dd>
+    </dl>
+
+    <h3>Pain points <span class="muted small">(one per line when editing)</span></h3>
+    ${editPainPoints(pains)}
+
+    <h3>By country</h3>
     <div class="country-grid">
       ${countryCard('CL', 'Chile')}
       ${countryCard('MX', 'Mexico')}
