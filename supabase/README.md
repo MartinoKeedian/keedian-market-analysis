@@ -42,11 +42,14 @@ rollback procedures.
    ```
    Should exit with `✓ All data checks passed.` and confirm the 8 RLS
    policies are present.
-4. **In Supabase Studio** — `Settings → API → Exposed schemas` — add
-   `kma` to the list (default is `public, graphql_public`; new list is
-   `public, graphql_public, kma`). Save. Without this step, the browser
-   client cannot reach the `kma` tables and the app silently falls back
-   to YAML reads.
+4. **Expose the `kma` schema to the REST API.** Two options:
+   - **Automated (preferred):** `node scripts/expose-schema.mjs`. Sets
+     `pgrst.db_schemas` on the `authenticator` role via SQL and sends
+     two `NOTIFY` signals to reload the PostgREST config + schema cache.
+     Confirmed working as of 2026-05-26.
+   - **Manual fallback:** Supabase Studio → Settings → API → Exposed
+     schemas → add `kma`. Use this if the SQL approach is reverted by
+     a future Supabase change.
 5. Verify the exposure works:
    ```bash
    curl -s -H "apikey: $ANON_KEY" \
