@@ -2,7 +2,7 @@
 
 import { loadAll } from './data-loader.js';
 
-const STORAGE_KEY = 'kma:scoring:overrides:v1';
+const STORAGE_KEY = 'kma:scoring:overrides:v2';
 const GH_PAT_KEY = 'kma:gh:pat:v1';
 
 const FEASIBILITY_LABELS = {

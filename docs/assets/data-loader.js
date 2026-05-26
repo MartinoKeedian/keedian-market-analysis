@@ -321,7 +321,7 @@ export function aggregateAttrsAllCountries(profile) {
 
 function applyOverrides(scoring) {
   try {
-    const raw = localStorage.getItem('kma:scoring:overrides:v1');
+    const raw = localStorage.getItem('kma:scoring:overrides:v2');
     if (!raw) return scoring;
     return deepMerge(scoring, JSON.parse(raw));
   } catch { return scoring; }

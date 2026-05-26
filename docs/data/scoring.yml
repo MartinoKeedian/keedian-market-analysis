@@ -38,7 +38,8 @@ feasibility:
       implementation_only: negative  # high BMS → less room for new impl
       full: mixed                    # weighted by impl/sub revenue split
   hw_gap:
-    invert: true                     # high gap → low feasibility
+    invert: false                    # Per current Product GAP description (1=hard, 7=easy),
+                                     # high value already means high feasibility. No inversion.
 
 countries_filter:
   default: all
