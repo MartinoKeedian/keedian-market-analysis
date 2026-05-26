@@ -71,7 +71,9 @@ body { line-height: 1.5; font-size: 14px; }
 .table-meta { font-family: var(--mono); margin-bottom: 0.5rem; }
 
 .master-table-scroll { overflow-x: auto; background: white; border: 1px solid var(--kd-line); border-radius: 4px; max-height: 75vh; }
-.master-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.master-table { min-width: 100%; width: max-content; border-collapse: collapse; font-size: 0.82rem; }
+.master-table thead th, .master-table tbody td { min-width: 70px; }
+.master-table thead th.sticky-col, .master-table tbody td.sticky-col { min-width: 220px; }
 .master-table thead th { background: var(--kd-paper); padding: 0.5rem 0.5rem; font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--kd-slate); font-weight: 500; border-bottom: 1px solid var(--kd-line); white-space: nowrap; position: sticky; top: 0; z-index: 5; text-align: left; }
 .master-table thead .group-header th { background: var(--kd-blue-soft); color: var(--kd-blue-deep); text-align: center; border-right: 1px solid var(--kd-line); top: 0; }
 .master-table thead .group-header th .expand-btn { background: transparent; border: none; color: var(--kd-blue-deep); cursor: pointer; padding: 0 0.25rem; font-family: var(--mono); font-size: 0.85em; margin-left: 0.25rem; }
