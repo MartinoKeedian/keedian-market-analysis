@@ -8,6 +8,32 @@ const KP_MIRROR_SEGMENTS = `${DATA_ROOT}/_kp-mirror/segments.yml`;
 
 let _supabaseClient = null;
 let _supabaseConfig = null;
+let globalFeasibilityDescriptions = [];
+
+export function getFeasibilityDescription(inputName, projectType) {
+  return globalFeasibilityDescriptions.find(
+    (d) => d.input_name === inputName && d.project_type === projectType
+  )?.description || '';
+}
+
+export async function updateFeasibilityDescription(inputName, projectType, newDescription) {
+  const client = await getSupabaseClient();
+  if (!client) throw new Error('Supabase client unavailable');
+  const { data, error } = await client.from('feasibility_descriptions')
+    .update({ description: newDescription })
+    .eq('input_name', inputName)
+    .eq('project_type', projectType)
+    .select().single();
+  if (error) throw error;
+  // Update local cache
+  const idx = globalFeasibilityDescriptions.findIndex(
+    (d) => d.input_name === inputName && d.project_type === projectType
+  );
+  if (idx >= 0) globalFeasibilityDescriptions[idx].description = newDescription;
+  else globalFeasibilityDescriptions.push({ input_name: inputName, project_type: projectType, description: newDescription });
+  await logAudit('feasibility_descriptions', `${inputName}|${projectType}`, 'description', null, newDescription);
+  return data;
+}
 
 export async function getSupabaseClient() {
   if (_supabaseClient) return _supabaseClient;
@@ -100,14 +126,17 @@ export async function loadAll() {
 }
 
 async function loadFromSupabase(client) {
-  const [profilesRes, countryDataRes, feasRes] = await Promise.all([
+  const [profilesRes, countryDataRes, feasRes, descrRes] = await Promise.all([
     client.from('profiles').select('*'),
     client.from('country_data').select('*'),
     client.from('feasibility').select('*'),
+    client.from('feasibility_descriptions').select('*'),
   ]);
   if (profilesRes.error) throw profilesRes.error;
   if (countryDataRes.error) throw countryDataRes.error;
   if (feasRes.error) throw feasRes.error;
+  if (descrRes.error) throw descrRes.error;
+  globalFeasibilityDescriptions = descrRes.data;
 
   const cdByProfile = {};
   for (const row of countryDataRes.data) {
@@ -133,8 +162,18 @@ function assembleProfile(row, countryRows, feasRows) {
         _id: c.id,                                          // db row id, used for updates
         sites: { low: c.sites_low, high: c.sites_high, nominal: c.sites_nominal },
         sites_rationale: c.sites_rationale,
-        implementation: { addressable_pct: numOrNull(c.impl_addressable_pct), avg_ticket_usd: numOrNull(c.impl_avg_ticket_usd) },
-        subscription: { addressable_pct: numOrNull(c.sub_addressable_pct), arpu_monthly_usd: numOrNull(c.sub_arpu_monthly_usd) },
+        implementation: {
+          addressable_pct: numOrNull(c.impl_addressable_pct),
+          avg_ticket_usd: numOrNull(c.impl_avg_ticket_usd),
+          adjusted_impact_usd: numOrNull(c.impl_adjusted_impact_usd),
+          additional_assumptions: c.impl_additional_assumptions,
+        },
+        subscription: {
+          addressable_pct: numOrNull(c.sub_addressable_pct),
+          arpu_monthly_usd: numOrNull(c.sub_arpu_monthly_usd),
+          adjusted_impact_usd: numOrNull(c.sub_adjusted_impact_usd),
+          additional_assumptions: c.sub_additional_assumptions,
+        },
         // Per-country attributes moved here from profiles in 0003 migration.
         typical_site_sqft: {
           low: c.typical_site_sqft_low,
@@ -161,8 +200,8 @@ function assembleProfile(row, countryRows, feasRows) {
     } else {
       byCountry[code] = {
         sites: { low: null, high: null, nominal: null },
-        implementation: { addressable_pct: null, avg_ticket_usd: null },
-        subscription: { addressable_pct: null, arpu_monthly_usd: null },
+        implementation: { addressable_pct: null, avg_ticket_usd: null, adjusted_impact_usd: null, additional_assumptions: null },
+        subscription: { addressable_pct: null, arpu_monthly_usd: null, adjusted_impact_usd: null, additional_assumptions: null },
         typical_site_sqft: { low: null, high: null, nominal: null },
         market_concentration: { value: null, rationale: null, source: null },
         bms_penetration: { value: null, rationale: null, source: null },

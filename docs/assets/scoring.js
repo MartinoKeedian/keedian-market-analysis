@@ -128,7 +128,7 @@ export function computeFeasibility(profile, mode, country, scoring) {
     weightTotal += w;
   }
   if (weightTotal === 0) return null;
-  return clamp1to10(total / weightTotal);
+  return clamp1to7(total / weightTotal);
 }
 
 // Per-country averaged inputs (used by the master table feasibility columns).
@@ -153,10 +153,11 @@ export function feasibilityInputsForCountry(profile, country) {
   };
 }
 
+// Feasibility scale is 1-7 (since migration 0004). Inversion is 8 - v.
 function invertIfNeeded(value, invert) {
   if (value === null || value === undefined) return null;
   if (!invert) return value;
-  return 11 - value; // 1 ↔ 10, 5 ↔ 6, etc.
+  return 8 - value; // 1 ↔ 7, 4 stays in the middle.
 }
 
 function applyBmsSign(value, mode, byMode, profile) {
@@ -164,11 +165,10 @@ function applyBmsSign(value, mode, byMode, profile) {
   if (!byMode) return value;
   const sign = byMode[mode];
   if (sign === 'positive') return value;
-  if (sign === 'negative') return 11 - value;
+  if (sign === 'negative') return 8 - value;
   if (sign === 'mixed') {
-    // Weighted by revenue split inside the profile for "full" mode.
     const split = revenueSplit(profile);
-    return split.sub * value + split.impl * (11 - value);
+    return split.sub * value + split.impl * (8 - value);
   }
   return value;
 }
@@ -190,6 +190,9 @@ function revenueSplit(profile) {
 
 function clamp1to10(v) {
   return Math.max(1, Math.min(10, v));
+}
+function clamp1to7(v) {
+  return Math.max(1, Math.min(7, v));
 }
 
 // -------------------------- Quadrant classification --------------------------

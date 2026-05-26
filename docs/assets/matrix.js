@@ -632,6 +632,11 @@ function startEdit(cell) {
     inputEl = document.createElement('input');
     inputEl.type = 'text';
     inputEl.value = editValue || '';
+  } else if (editType === 'number-1-7') {
+    inputEl = document.createElement('input');
+    inputEl.type = 'number';
+    inputEl.value = editValue;
+    inputEl.min = '1'; inputEl.max = '7'; inputEl.step = '0.1';
   } else if (editType === 'bool') {
     inputEl = document.createElement('select');
     inputEl.innerHTML = `
@@ -715,6 +720,11 @@ async function persistEdit(table, recordId, field, value) {
   if (table === 'country_data') return updateCountryDataField(recordId, field, value);
   if (table === 'profiles')     return updateProfileField(recordId, field, value);
   if (table === 'feasibility')  return updateFeasibilityField(recordId, field, value);
+  if (table === 'feasibility_descriptions') {
+    // recordId is "input_name|project_type"
+    const [inputName, projectType] = recordId.split('|');
+    return updateFeasibilityDescription(inputName, projectType, value);
+  }
   throw new Error(`Unknown table: ${table}`);
 }
 
@@ -786,8 +796,6 @@ function selectProfile(id, country) {
 }
 
 function drawSelectedProfile(id) {
-  // Find the row in the currently-selected country's data (matches the table the
-  // user clicked from); fall back to 'all' if the profile isn't in the chosen view.
   let row = (rowsByCountry[selectedCountry] || []).find((r) => r.profile.id === id);
   if (!row) row = (rowsByCountry.all || []).find((r) => r.profile.id === id);
   if (!row) return;
@@ -820,40 +828,241 @@ function drawSelectedProfile(id) {
       ${countryPills}
     </div>
 
-    <div class="selected-grid">
-      <section>
-        <h3>Scoring · ${COUNTRY_LABEL[selectedCountry]}</h3>
-        <dl class="kv compact">
-          <dt>Impact (USD, current filters)</dt><dd class="mono">${fmtUsd(row.impactUsd)}</dd>
-          <dt>Impact (1–10)</dt><dd class="mono">${row.impact10 != null ? row.impact10.toFixed(1) : '—'}</dd>
-          <dt>Feasibility (1–10)</dt><dd class="mono">${row.feasibility10 != null ? row.feasibility10.toFixed(1) : '—'}</dd>
-        </dl>
-        <h4>Feasibility breakdown · ${COUNTRY_LABEL[selectedCountry]}</h4>
-        ${feasibilityBreakdownHtml(p, selectedCountry)}
-        <p class="small muted"><a href="./criteria.html">What do these criteria mean? →</a></p>
-      </section>
-
-      <section>
-        <h3>Market analysis · ${COUNTRY_LABEL[selectedCountry]}</h3>
-        ${marketBlockHtml(p, selectedCountry)}
-      </section>
-    </div>
+    ${profileInfoSectionHtml(p, selectedCountry)}
+    ${impactSectionHtml(p, row, selectedCountry)}
+    ${feasibilitySectionHtml(p, selectedCountry)}
 
     ${isProfileInKP(p) ? `
-      <section class="selected-context">
-        <h3>Inherited from productization</h3>
+      <section class="drill-section">
+        <h3 class="drill-section-h">Inherited from productization (read-only)</h3>
         ${inheritedBlockHtml(p)}
       </section>
     ` : ''}
   `;
 
-  // Country pills wire-up
   el.querySelectorAll('.country-pill').forEach((btn) => {
     btn.addEventListener('click', () => {
       selectedCountry = btn.dataset.country;
       drawSelectedProfile(id);
     });
   });
+}
+
+// -------------------------- Drill-down sections --------------------------
+
+function profileInfoSectionHtml(p, countryFilter) {
+  const m = p.market_analysis || {};
+  const pains = m.pain_points || [];
+  const editPainPoints = (val) =>
+    `<div class="editable-block" ${ed('profiles', p.id, 'pain_points', 'pain-points', (val || []).join('|'))}>${
+      (val || []).length
+        ? `<ul class="bullets">${val.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
+        : '—'
+    }</div>`;
+
+  const COUNTRY_LABEL = { CL: 'Chile', MX: 'Mexico', US: 'United States' };
+  const countriesToShow = countryFilter && countryFilter !== 'all' ? [countryFilter] : ['CL', 'MX', 'US'];
+
+  const countryBlock = (code) => {
+    const c = (m.by_country || {})[code] || {};
+    const cdId = c._id;
+    const sqft = c.typical_site_sqft || {};
+    const brands = c.brands_range || {};
+    const conc = c.market_concentration || {};
+    const bms = c.bms_penetration || {};
+
+    const editC = (field, type, val, display) =>
+      cdId ? `<span class="editable-text" ${ed('country_data', cdId, field, type, val)}>${display ?? (val ?? '—')}</span>` : `<span>${display ?? (val ?? '—')}</span>`;
+    const editCText = (field, val) =>
+      cdId ? `<div class="editable-block" ${ed('country_data', cdId, field, 'textarea', val)}>${escapeHtml(val || '—')}</div>` : `<div>${escapeHtml(val || '—')}</div>`;
+    const editCSrc = (field, val) =>
+      cdId ? `<span class="editable-text" ${ed('country_data', cdId, field, 'text', val)}>${escapeHtml(val || '—')}</span>` : `<span>${escapeHtml(val || '—')}</span>`;
+
+    return `
+      <div class="info-block">
+        ${countriesToShow.length > 1 ? `<h4>${COUNTRY_LABEL[code]}</h4>` : ''}
+        <h5>Market structure</h5>
+        <dl class="kv compact">
+          <dt>Number of brands / operators</dt>
+          <dd>${editC('brands_range_low', 'number', brands.low)} <span class="range-sep">–</span> ${editC('brands_range_high', 'number', brands.high)}</dd>
+          <dt>Brands rationale</dt><dd>${editCText('brands_range_rationale', brands.rationale)}</dd>
+          <dt>Brands source</dt><dd>${editCSrc('brands_range_source', brands.source)}</dd>
+          <dt>Market concentration</dt>
+          <dd>${cdId ? `<span class="editable-text" ${ed('country_data', cdId, 'market_concentration_value', 'enum-concentration', conc.value)}>${conc.value || '—'}</span>` : (conc.value || '—')}</dd>
+          <dt>Concentration rationale</dt><dd>${editCText('market_concentration_rationale', conc.rationale)}</dd>
+          <dt>Concentration source</dt><dd>${editCSrc('market_concentration_source', conc.source)}</dd>
+        </dl>
+
+        <h5>Site profile</h5>
+        <dl class="kv compact">
+          <dt>Typical site size — low (ft²)</dt><dd>${editC('typical_site_sqft_low', 'number', sqft.low)}</dd>
+          <dt>Typical site size — high (ft²)</dt><dd>${editC('typical_site_sqft_high', 'number', sqft.high)}</dd>
+          <dt>Typical site size — nominal (ft²)</dt><dd>${editC('typical_site_sqft_nominal', 'number', sqft.nominal)}</dd>
+          <dt>BMS penetration (1–7)</dt><dd>${editC('bms_penetration_value', 'number-1-7', bms.value)}</dd>
+          <dt>BMS rationale</dt><dd>${editCText('bms_penetration_rationale', bms.rationale)}</dd>
+          <dt>BMS source</dt><dd>${editCSrc('bms_penetration_source', bms.source)}</dd>
+        </dl>
+      </div>
+    `;
+  };
+
+  return `
+    <section class="drill-section drill-section-profile">
+      <h3 class="drill-section-h"><span class="drill-section-num">A</span> Profile information</h3>
+
+      <div class="info-block">
+        <h5>Pain points <span class="muted small">(profile-level, one per line when editing)</span></h5>
+        ${editPainPoints(pains)}
+      </div>
+
+      <div class="info-grid ${countriesToShow.length === 1 ? 'single-country' : ''}">
+        ${countriesToShow.map(countryBlock).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function impactSectionHtml(p, row, countryFilter) {
+  const m = p.market_analysis || {};
+  const COUNTRY_LABEL = { CL: 'Chile', MX: 'Mexico', US: 'United States' };
+  const countriesToShow = countryFilter && countryFilter !== 'all' ? [countryFilter] : ['CL', 'MX', 'US'];
+  const horizon = state.scoring.impact.subscription_horizon_years ?? 3;
+
+  const countryImpact = (code) => {
+    const c = (m.by_country || {})[code] || {};
+    const cdId = c._id;
+    const i = c.implementation || {};
+    const sub = c.subscription || {};
+    const s = c.sites || {};
+    const editC = (field, type, val, display) =>
+      cdId ? `<span class="editable-text" ${ed('country_data', cdId, field, type, val)}>${display ?? (val ?? '—')}</span>` : `<span>${display ?? (val ?? '—')}</span>`;
+    const editCText = (field, val) =>
+      cdId ? `<div class="editable-block" ${ed('country_data', cdId, field, 'textarea', val)}>${escapeHtml(val || '—')}</div>` : `<div>${escapeHtml(val || '—')}</div>`;
+
+    const implTotal = (s.nominal ?? 0) * ((i.addressable_pct ?? 0) / 100) * (i.avg_ticket_usd ?? 0);
+    const subTotal = (s.nominal ?? 0) * ((sub.addressable_pct ?? 0) / 100) * (sub.arpu_monthly_usd ?? 0) * 12 * horizon;
+    const implFinal = i.adjusted_impact_usd ?? implTotal;
+    const subFinal = sub.adjusted_impact_usd ?? subTotal;
+
+    return `
+      <div class="impact-card">
+        ${countriesToShow.length > 1 ? `<h4>${COUNTRY_LABEL[code]}</h4>` : ''}
+
+        <h5>Volume</h5>
+        <dl class="kv compact">
+          <dt>Sites — low</dt><dd>${editC('sites_low', 'number', s.low)}</dd>
+          <dt>Sites — high</dt><dd>${editC('sites_high', 'number', s.high)}</dd>
+          <dt>Sites — nominal (used in calcs)</dt><dd>${editC('sites_nominal', 'number', s.nominal)}</dd>
+          <dt>Sites rationale</dt><dd>${editCText('sites_rationale', c.sites_rationale)}</dd>
+        </dl>
+
+        <div class="impact-cols">
+          <div class="impact-col">
+            <h5>Field Services / Implementation</h5>
+            <dl class="kv compact">
+              <dt>Addressable %</dt><dd>${editC('impl_addressable_pct', 'number-decimal', i.addressable_pct, fmtPct(i.addressable_pct))}</dd>
+              <dt>Avg ticket (USD)</dt><dd>${editC('impl_avg_ticket_usd', 'number-decimal', i.avg_ticket_usd, fmtUsdRaw(i.avg_ticket_usd))}</dd>
+              <dt>Recommended impact (computed)</dt><dd class="mono">${fmtUsd(implTotal)}</dd>
+              <dt>Adjusted impact (override, USD)</dt><dd>${editC('impl_adjusted_impact_usd', 'number-decimal', i.adjusted_impact_usd, fmtUsdRaw(i.adjusted_impact_usd))}</dd>
+              <dt class="strong">Final impact used</dt><dd class="mono strong">${fmtUsd(implFinal)}</dd>
+              <dt>Additional assumptions</dt><dd>${editCText('impl_additional_assumptions', i.additional_assumptions)}</dd>
+            </dl>
+          </div>
+          <div class="impact-col">
+            <h5>Subscription</h5>
+            <dl class="kv compact">
+              <dt>Addressable %</dt><dd>${editC('sub_addressable_pct', 'number-decimal', sub.addressable_pct, fmtPct(sub.addressable_pct))}</dd>
+              <dt>ARPU monthly (USD)</dt><dd>${editC('sub_arpu_monthly_usd', 'number-decimal', sub.arpu_monthly_usd, fmtUsdRaw(sub.arpu_monthly_usd))}</dd>
+              <dt>Recommended impact (computed, ${horizon}y)</dt><dd class="mono">${fmtUsd(subTotal)}</dd>
+              <dt>Adjusted impact (override, USD)</dt><dd>${editC('sub_adjusted_impact_usd', 'number-decimal', sub.adjusted_impact_usd, fmtUsdRaw(sub.adjusted_impact_usd))}</dd>
+              <dt class="strong">Final impact used</dt><dd class="mono strong">${fmtUsd(subFinal)}</dd>
+              <dt>Additional assumptions</dt><dd>${editCText('sub_additional_assumptions', sub.additional_assumptions)}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  return `
+    <section class="drill-section drill-section-impact">
+      <h3 class="drill-section-h"><span class="drill-section-num">B</span> Impact information</h3>
+      <p class="muted small">Computed = sites × addressable × ticket/ARPU. Adjusted = manual override; when set, it replaces the computed value in the global score.</p>
+      <div class="impact-grid ${countriesToShow.length === 1 ? 'single-country' : ''}">
+        ${countriesToShow.map(countryImpact).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function feasibilitySectionHtml(p, countryFilter) {
+  const rows = p.market_analysis?.feasibility || [];
+  if (rows.length === 0) return '<section class="drill-section"><p class="muted">No feasibility data.</p></section>';
+
+  const COUNTRY_LABEL = { CL: 'Chile', MX: 'Mexico', US: 'United States' };
+  const INPUT_LABELS = {
+    need_perception: 'Need perception',
+    hw_gap: 'HW gap / Product GAP',
+    similar_clients_exist: 'Similar clients exist',
+    bms_penetration_effect: 'BMS penetration effect',
+    sustainment_upside: 'Sustainment upside',
+  };
+
+  const countriesToShow = countryFilter && countryFilter !== 'all' ? [countryFilter] : ['CL', 'MX', 'US'];
+
+  const rowFor = (country, type) =>
+    rows.find((r) => r.country_code === country && r.project_type === type);
+
+  const scoreCell = (country, type, field) => {
+    const r = rowFor(country, type);
+    if (!r) return '<span class="muted">—</span>';
+    const v = r[field];
+    return `<span class="editable-text feasibility-score" ${ed('feasibility', r.id, field, 'number-1-7', v)}>${v != null ? Number(v).toFixed(1) : '—'}</span>`;
+  };
+
+  const inputRow = (key) => {
+    const label = INPUT_LABELS[key];
+    const implDescr = getFeasibilityDescription(key, 'implementation');
+    const subDescr = getFeasibilityDescription(key, 'subscription');
+    return `
+      <div class="feas-input-block">
+        <h4>${label}</h4>
+        <div class="feas-input-grid">
+          <div class="feas-descr">
+            <div class="feas-descr-h">Implementation — what 1–7 mean</div>
+            <div class="editable-block" ${ed('feasibility_descriptions', `${key}|implementation`, 'description', 'textarea', implDescr)}>${escapeHtml(implDescr || '—')}</div>
+          </div>
+          <div class="feas-scores">
+            <h5>Implementation score</h5>
+            <table class="feas-score-table">
+              <thead><tr>${countriesToShow.map((c) => `<th>${COUNTRY_LABEL[c]}</th>`).join('')}</tr></thead>
+              <tbody><tr>${countriesToShow.map((c) => `<td>${scoreCell(c, 'implementation', key)}</td>`).join('')}</tr></tbody>
+            </table>
+          </div>
+
+          <div class="feas-descr">
+            <div class="feas-descr-h">Subscription — what 1–7 mean</div>
+            <div class="editable-block" ${ed('feasibility_descriptions', `${key}|subscription`, 'description', 'textarea', subDescr)}>${escapeHtml(subDescr || '—')}</div>
+          </div>
+          <div class="feas-scores">
+            <h5>Subscription score</h5>
+            <table class="feas-score-table">
+              <thead><tr>${countriesToShow.map((c) => `<th>${COUNTRY_LABEL[c]}</th>`).join('')}</tr></thead>
+              <tbody><tr>${countriesToShow.map((c) => `<td>${scoreCell(c, 'subscription', key)}</td>`).join('')}</tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  return `
+    <section class="drill-section drill-section-feasibility">
+      <h3 class="drill-section-h"><span class="drill-section-num">C</span> Feasibility</h3>
+      <p class="muted small">Each input is 1–7 (decimals allowed). Descriptions of what 1–7 mean per (input × project type) are editable — they apply to all profiles.</p>
+      ${Object.keys(INPUT_LABELS).map(inputRow).join('')}
+    </section>
+  `;
 }
 
 function feasibilityBreakdownHtml(p, countryFilter) {
