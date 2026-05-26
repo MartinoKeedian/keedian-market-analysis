@@ -24,6 +24,10 @@
       <span class="brand-context">Market Analysis · Internal</span>
     </a>
     <div class="topbar-meta">
+      <span id="auth-status" class="auth-status">
+        <button id="auth-signin-btn" class="auth-btn">Sign in to edit</button>
+      </span>
+      <span class="brand-divider"></span>
       <a href="./marimekko.html">Market size marimekko →</a>
       <span class="brand-divider"></span>
       <a href="./criteria.html">Criteria reference →</a>
@@ -101,6 +105,8 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-<script type="module" src="./assets/matrix.js?v=3"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script type="module" src="./assets/matrix.js?v=4"></script>
+<script type="module" src="./assets/auth.js?v=1"></script>
 </body>
 </html>

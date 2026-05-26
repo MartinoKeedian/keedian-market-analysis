@@ -1,0 +1,17 @@
+{
+  "name": "keedian-market-analysis",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Internal market & customer profile analysis for Keedian.",
+  "scripts": {
+    "validate": "node scripts/validate.mjs",
+    "migrate:to-supabase": "node scripts/migrate-to-supabase.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "js-yaml": "^4.1.0",
+    "pg": "^8.11.0",
+    "dotenv": "^16.4.0"
+  }
+}

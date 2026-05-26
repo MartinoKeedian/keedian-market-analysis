@@ -28,3 +28,6 @@ build/
 
 # Logs
 *.log
+
+# Local Supabase service-role key (don't commit)
+.env.local

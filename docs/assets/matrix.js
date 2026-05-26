@@ -2,7 +2,11 @@
 // Click a point to select; details render below the matrix.
 // Filters update the rendering in place.
 
-import { loadAll, getProfileDisplayName, getProfileStatus, isProfileInKP } from './data-loader.js';
+import {
+  loadAll, getProfileDisplayName, getProfileStatus, isProfileInKP,
+  updateCountryDataField, updateProfileField, updateFeasibilityField,
+  getCurrentUser,
+} from './data-loader.js';
 import {
   computeImpactUsd,
   normalizeImpactAxis,
@@ -23,18 +27,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusEl = document.getElementById('status-msg');
   try {
     state = await loadAll();
-    if (!state.kpAvailable) {
-      statusEl.textContent =
-        'KP mirror unavailable — inherited data will show as empty until sync-kp.yml runs.';
-      statusEl.classList.add('warn');
-    }
+    const srcLabel = state.dataSource === 'supabase' ? 'Supabase (live)' : 'YAML (fallback — expose `kma` schema in Supabase to enable edits)';
+    statusEl.textContent = `Data source: ${srcLabel}.`;
+    statusEl.className = `status-msg ${state.dataSource === 'supabase' ? 'success' : 'warn'}`;
     bindFilters();
+    bindEditing();
     render();
   } catch (err) {
     statusEl.textContent = `Failed to load data: ${err.message}`;
     statusEl.classList.add('error');
     console.error(err);
   }
+});
+
+document.addEventListener('kma:auth-changed', () => {
+  // re-render so editable cells show/hide accordingly
+  if (state) render();
 });
 
 function bindFilters() {
@@ -386,7 +394,7 @@ function drawMasterTable(rows, axes, country, mode, containerId, totalsId) {
           </tr>
         </thead>
         <tbody>
-          ${tableRows.map((tr) => renderTableRow(tr, labels, showGeneral, showImplDetail, showSubDetail, showFeasInputs)).join('')}
+          ${tableRows.map((tr) => renderTableRow(tr, labels, showGeneral, showImplDetail, showSubDetail, showFeasInputs, country)).join('')}
         </tbody>
       </table>
     </div>
@@ -408,10 +416,19 @@ function drawMasterTable(rows, axes, country, mode, containerId, totalsId) {
   });
 }
 
-function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDetail, showSubDetail, showFeasInputs) {
+function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDetail, showSubDetail, showFeasInputs, country) {
   const p = row.profile;
   const m = p.market_analysis || {};
   const isSelected = p.id === selectedId;
+  // Country-specific editing only in CL/MX/US tables, not in "All" sum.
+  const editCountry = country !== 'all' ? country : null;
+  const cdRowId = editCountry ? m.by_country?.[editCountry]?._id : null;
+  const ed = (table, recordId, field, type, value) => {
+    if (!table || !recordId) return '';
+    return `data-editable="true" data-edit-table="${table}" data-edit-record="${recordId}" data-edit-field="${field}" data-edit-type="${type}" data-edit-value="${value == null ? '' : value}"`;
+  };
+  const concVal = m.market_concentration?.value;
+  const bmsVal = m.bms_penetration?.value;
 
   const bmsTitle = escapeAttr(`${m.bms_penetration?.rationale || ''}\nSource: ${m.bms_penetration?.source || '—'}`);
   const concTitle = escapeAttr(`${m.market_concentration?.rationale || ''}\nSource: ${m.market_concentration?.source || '—'}`);
@@ -433,20 +450,31 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
       </td>
       ${showGeneral ? `
         <td class="num" title="${brandsTitle}">${fmtRange(m.brands_range?.low, m.brands_range?.high)}</td>
-        <td class="num" title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
-        <td class="num bms-cell" title="${bmsTitle}">${m.bms_penetration?.value ?? '—'}</td>
-        <td title="${concTitle}">${concBadge}</td>
+        <td class="num"
+            ${editCountry ? ed('country_data', cdRowId, 'sites_nominal', 'number', m.by_country?.[editCountry]?.sites?.nominal) : ''}
+            title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
+        <td class="num bms-cell"
+            ${ed('profiles', p.id, 'bms_penetration_value', 'number-1-10', bmsVal)}
+            title="${bmsTitle}">${bmsVal ?? '—'}</td>
+        <td ${ed('profiles', p.id, 'market_concentration_value', 'enum-concentration', concVal)}
+            title="${concTitle}">${concBadge}</td>
       ` : `
-        <td class="num" title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
+        <td class="num"
+            ${editCountry ? ed('country_data', cdRowId, 'sites_nominal', 'number', m.by_country?.[editCountry]?.sites?.nominal) : ''}
+            title="${sitesTitle}">${fmtNum(view.sites_total)}</td>
       `}
       ${showImplDetail ? `
-        <td class="num">${fmtPct(view.impl_addr)}</td>
-        <td class="num">${fmtUsd(view.impl_ticket)}</td>
+        <td class="num"
+            ${editCountry ? ed('country_data', cdRowId, 'impl_addressable_pct', 'number', view.impl_addr) : ''}>${fmtPct(view.impl_addr)}</td>
+        <td class="num"
+            ${editCountry ? ed('country_data', cdRowId, 'impl_avg_ticket_usd', 'number', view.impl_ticket) : ''}>${fmtUsd(view.impl_ticket)}</td>
       ` : ''}
       <td class="num strong highlight-total">${fmtUsd(view.impl_total)}</td>
       ${showSubDetail ? `
-        <td class="num">${fmtPct(view.sub_addr)}</td>
-        <td class="num">${fmtUsd(view.sub_arpu_annual)}</td>
+        <td class="num"
+            ${editCountry ? ed('country_data', cdRowId, 'sub_addressable_pct', 'number', view.sub_addr) : ''}>${fmtPct(view.sub_addr)}</td>
+        <td class="num"
+            ${editCountry ? ed('country_data', cdRowId, 'sub_arpu_monthly_usd_yearly', 'number-arpu-annual', view.sub_arpu_annual) : ''}>${fmtUsd(view.sub_arpu_annual)}</td>
       ` : ''}
       <td class="num strong highlight-total">${fmtUsd(view.sub_total)}</td>
       <td class="num strong highlight-total">${fmtUsd(view.impact_usd)}</td>
@@ -454,11 +482,11 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
       <td><span class="qbadge ${quadrantClass}">${quadrantLabel}</span></td>
       <td class="num strong highlight-score">${row.feasibility10 != null ? row.feasibility10.toFixed(1) : '—'}</td>
       ${showFeasInputs ? `
-        <td class="num">${m.feasibility_inputs?.need_perception ?? '—'}</td>
-        <td class="num">${m.feasibility_inputs?.delivery_capacity?.hw_gap ?? '—'}</td>
-        <td class="num">${m.feasibility_inputs?.delivery_capacity?.similar_clients_exist ?? '—'}</td>
-        <td class="num">${m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect ?? '—'}</td>
-        <td class="num">${m.feasibility_inputs?.delivery_capacity?.sustainment_upside ?? '—'}</td>
+        <td class="num" ${ed('feasibility_inputs', p.id, 'need_perception', 'number-1-10', m.feasibility_inputs?.need_perception)}>${m.feasibility_inputs?.need_perception ?? '—'}</td>
+        <td class="num" ${ed('feasibility_inputs', p.id, 'hw_gap', 'number-1-10', m.feasibility_inputs?.delivery_capacity?.hw_gap)}>${m.feasibility_inputs?.delivery_capacity?.hw_gap ?? '—'}</td>
+        <td class="num" ${ed('feasibility_inputs', p.id, 'similar_clients_exist', 'number-1-10', m.feasibility_inputs?.delivery_capacity?.similar_clients_exist)}>${m.feasibility_inputs?.delivery_capacity?.similar_clients_exist ?? '—'}</td>
+        <td class="num" ${ed('feasibility_inputs', p.id, 'bms_penetration_effect', 'number-1-10', m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect)}>${m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect ?? '—'}</td>
+        <td class="num" ${ed('feasibility_inputs', p.id, 'sustainment_upside', 'number-1-10', m.feasibility_inputs?.delivery_capacity?.sustainment_upside)}>${m.feasibility_inputs?.delivery_capacity?.sustainment_upside ?? '—'}</td>
       ` : `
         <td class="num muted">—</td>
       `}
@@ -528,6 +556,129 @@ function escapeHtml(s) {
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
+}
+
+// -------------------------- Inline editing --------------------------
+
+let editingCell = null;
+
+function bindEditing() {
+  document.addEventListener('click', async (e) => {
+    const cell = e.target.closest('[data-editable="true"]');
+    if (!cell) return;
+    if (editingCell) return;                                   // already editing another
+    if (!document.body.classList.contains('auth-signed-in')) return;
+    if (cell.querySelector('input, select')) return;
+    startEdit(cell);
+  });
+}
+
+function startEdit(cell) {
+  editingCell = cell;
+  const { editTable, editRecord, editField, editType, editValue } = cell.dataset;
+  cell.dataset.original = cell.innerHTML;
+
+  let inputEl;
+  if (editType === 'enum-concentration') {
+    inputEl = document.createElement('select');
+    inputEl.innerHTML = `
+      <option value=""></option>
+      <option value="fragmented" ${editValue === 'fragmented' ? 'selected' : ''}>fragmented</option>
+      <option value="mixed" ${editValue === 'mixed' ? 'selected' : ''}>mixed</option>
+      <option value="concentrated" ${editValue === 'concentrated' ? 'selected' : ''}>concentrated</option>
+    `;
+  } else {
+    inputEl = document.createElement('input');
+    inputEl.type = 'number';
+    inputEl.value = editValue;
+    if (editType === 'number-1-10') {
+      inputEl.min = '1'; inputEl.max = '10'; inputEl.step = '1';
+    } else if (editType === 'number-arpu-annual') {
+      // shown as annual; saved as monthly. Convert in submitter.
+    }
+  }
+  inputEl.className = 'inline-edit';
+  cell.innerHTML = '';
+  cell.appendChild(inputEl);
+  inputEl.focus();
+  if (inputEl.select) inputEl.select();
+
+  let finishing = false;
+  const finish = async (save) => {
+    if (finishing) return;
+    finishing = true;
+    if (save) {
+      const raw = inputEl.value.trim();
+      let toSave;
+      let field = editField;
+      if (editType === 'number-arpu-annual') {
+        toSave = raw === '' ? null : parseFloat(raw) / 12;
+        field = 'sub_arpu_monthly_usd';
+      } else if (editType.startsWith('number')) {
+        toSave = raw === '' ? null : parseFloat(raw);
+      } else {
+        toSave = raw === '' ? null : raw;
+      }
+      try {
+        cell.classList.add('saving');
+        await persistEdit(editTable, editRecord, field, toSave);
+        applyLocalUpdate(editTable, editRecord, field, toSave);
+        editingCell = null;
+        render();
+      } catch (err) {
+        alert(`Save failed: ${err.message}`);
+        cell.innerHTML = cell.dataset.original;
+        editingCell = null;
+      } finally {
+        cell.classList.remove('saving');
+      }
+    } else {
+      cell.innerHTML = cell.dataset.original;
+      editingCell = null;
+    }
+  };
+  inputEl.addEventListener('blur', () => finish(true));
+  inputEl.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+  });
+}
+
+async function persistEdit(table, recordId, field, value) {
+  if (table === 'country_data') return updateCountryDataField(recordId, field, value);
+  if (table === 'profiles')     return updateProfileField(recordId, field, value);
+  if (table === 'feasibility_inputs') return updateFeasibilityField(recordId, field, value);
+  throw new Error(`Unknown table: ${table}`);
+}
+
+function applyLocalUpdate(table, recordId, field, value) {
+  // mutate state.profiles so re-render reflects the change without re-fetching
+  if (table === 'profiles') {
+    const p = state.profiles.find((x) => x.id === recordId);
+    if (!p) return;
+    if (field === 'bms_penetration_value') p.market_analysis.bms_penetration.value = value;
+    if (field === 'market_concentration_value') p.market_analysis.market_concentration.value = value;
+  } else if (table === 'country_data') {
+    for (const p of state.profiles) {
+      for (const code of ['CL', 'MX', 'US']) {
+        const cd = p.market_analysis?.by_country?.[code];
+        if (cd && cd._id === recordId) {
+          if (field === 'sites_nominal') cd.sites.nominal = value;
+          if (field === 'impl_addressable_pct') cd.implementation.addressable_pct = value;
+          if (field === 'impl_avg_ticket_usd') cd.implementation.avg_ticket_usd = value;
+          if (field === 'sub_addressable_pct') cd.subscription.addressable_pct = value;
+          if (field === 'sub_arpu_monthly_usd') cd.subscription.arpu_monthly_usd = value;
+          return;
+        }
+      }
+    }
+  } else if (table === 'feasibility_inputs') {
+    const p = state.profiles.find((x) => x.id === recordId);
+    if (!p || !p.market_analysis.feasibility_inputs) return;
+    const f = p.market_analysis.feasibility_inputs;
+    if (field === 'need_perception') f.need_perception = value;
+    else if (f.delivery_capacity) f.delivery_capacity[field] = value;
+  }
 }
 
 // -------------------------- Inline selected-profile panel --------------------------
