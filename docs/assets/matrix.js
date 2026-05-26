@@ -342,12 +342,12 @@ function drawMasterTable(rows, axes, country, mode) {
         <thead>
           <tr class="group-header">
             <th rowspan="2" class="sticky-col">Profile</th>
-            <th colspan="4">General data</th>
-            <th colspan="${implCols}">Implementation market size ${expandBtn('impl_market', !showImplDetail)}</th>
-            <th colspan="${subCols}">Subscription market size (annual, Essential approx.) ${expandBtn('sub_market', !showSubDetail)}</th>
-            <th colspan="2">Total market size (Impact)</th>
-            <th colspan="2">Quadrant &amp; Feasibility score</th>
-            ${feasInputsCols > 0 ? `<th colspan="${feasInputsCols}">Feasibility inputs (1–10) ${expandBtn('feas_inputs', !showFeasInputs)}</th>` : `<th>Feasibility inputs ${expandBtn('feas_inputs', !showFeasInputs)}</th>`}
+            <th colspan="4">General<br>data</th>
+            <th colspan="${implCols}">Implementation<br>market ${expandBtn('impl_market', !showImplDetail)}</th>
+            <th colspan="${subCols}">Subscription<br>market <span class="group-sub">/yr · Essential</span> ${expandBtn('sub_market', !showSubDetail)}</th>
+            <th colspan="2">Total<br>impact</th>
+            <th colspan="2">Quadrant ·<br>Feasibility</th>
+            ${feasInputsCols > 0 ? `<th colspan="${feasInputsCols}">Feasibility<br>inputs ${expandBtn('feas_inputs', !showFeasInputs)}</th>` : `<th>Feas.<br>inputs ${expandBtn('feas_inputs', !showFeasInputs)}</th>`}
           </tr>
           <tr class="sub-header">
             <th class="num">Brands</th>
