@@ -11,6 +11,7 @@ import {
   computeImpactUsd,
   normalizeImpactAxis,
   computeFeasibility,
+  feasibilityInputsForCountry,
   classifyQuadrant,
   fmtUsd,
 } from './scoring.js';
@@ -81,7 +82,7 @@ function scoreAllProfiles(country, mode) {
     state.scoring.impact.normalization.method
   );
   return state.profiles.map((p) => {
-    const feas = computeFeasibility(p, mode, state.scoring);
+    const feas = computeFeasibility(p, mode, country, state.scoring);
     return {
       profile: p,
       impactUsd: impactUsd[p.id],
@@ -326,8 +327,14 @@ function drawMasterTable(rows, axes, country, mode, containerId, totalsId) {
 
   const tableRows = rows.map((r) => {
     const view = computeTableRow(r.profile, country, mode, horizon);
-    const quadrant = r.hasData ? classifyQuadrant(r.impact10, r.feasibility10, t) : null;
-    return { row: r, view, quadrant };
+    // Override feasibility10 with this table's country-specific value
+    // (the global value passed in via `rows` is computed for country='all').
+    const localFeas = computeFeasibility(r.profile, mode, country, state.scoring);
+    const localRow = { ...r, feasibility10: localFeas };
+    const quadrant = localRow.hasData && localFeas !== null
+      ? classifyQuadrant(localRow.impact10, localFeas, t)
+      : null;
+    return { row: localRow, view, quadrant };
   });
   // Sort by per-country impact descending (each table has its own ranking).
   tableRows.sort((a, b) => (b.view.impact_usd || 0) - (a.view.impact_usd || 0));
@@ -428,6 +435,9 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
   // ed() is the global helper defined below — uses escapeAttr for safe values.
   const concVal = m.market_concentration?.value;
   const bmsVal = m.bms_penetration?.value;
+  // Feasibility inputs averaged per country (across impl + sub). Read-only in table;
+  // editing happens in the drill-down where each (country, type) cell is exposed.
+  const fi = feasibilityInputsForCountry(p, country);
 
   const bmsTitle = escapeAttr(`${m.bms_penetration?.rationale || ''}\nSource: ${m.bms_penetration?.source || '—'}`);
   const concTitle = escapeAttr(`${m.market_concentration?.rationale || ''}\nSource: ${m.market_concentration?.source || '—'}`);
@@ -485,11 +495,11 @@ function renderTableRow({ row, view, quadrant }, labels, showGeneral, showImplDe
       <td><span class="qbadge ${quadrantClass}">${quadrantLabel}</span></td>
       <td class="num strong highlight-score">${row.feasibility10 != null ? row.feasibility10.toFixed(1) : '—'}</td>
       ${showFeasInputs ? `
-        <td class="num" ${ed('feasibility_inputs', p.id, 'need_perception', 'number-1-10', m.feasibility_inputs?.need_perception)}>${m.feasibility_inputs?.need_perception ?? '—'}</td>
-        <td class="num" ${ed('feasibility_inputs', p.id, 'hw_gap', 'number-1-10', m.feasibility_inputs?.delivery_capacity?.hw_gap)}>${m.feasibility_inputs?.delivery_capacity?.hw_gap ?? '—'}</td>
-        <td class="num" ${ed('feasibility_inputs', p.id, 'similar_clients_exist', 'number-1-10', m.feasibility_inputs?.delivery_capacity?.similar_clients_exist)}>${m.feasibility_inputs?.delivery_capacity?.similar_clients_exist ?? '—'}</td>
-        <td class="num" ${ed('feasibility_inputs', p.id, 'bms_penetration_effect', 'number-1-10', m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect)}>${m.feasibility_inputs?.delivery_capacity?.bms_penetration_effect ?? '—'}</td>
-        <td class="num" ${ed('feasibility_inputs', p.id, 'sustainment_upside', 'number-1-10', m.feasibility_inputs?.delivery_capacity?.sustainment_upside)}>${m.feasibility_inputs?.delivery_capacity?.sustainment_upside ?? '—'}</td>
+        <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.need_perception)}</td>
+        <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.hw_gap)}</td>
+        <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.similar_clients_exist)}</td>
+        <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.bms_penetration_effect)}</td>
+        <td class="num" title="Avg of impl + sub for this country. Edit per-type values in drill-down.">${fmtFeas(fi.sustainment_upside)}</td>
       ` : `
         <td class="num muted">—</td>
       `}
@@ -553,6 +563,10 @@ function computeTableRow(profile, country, mode, horizon) {
 
 function escapeAttr(s) {
   return String(s).replaceAll('"', '&quot;').replaceAll('\n', '&#10;');
+}
+function fmtFeas(v) {
+  if (v === null || v === undefined) return '—';
+  return Number.isInteger(v) ? v.toString() : v.toFixed(1);
 }
 function escapeHtml(s) {
   return String(s)
@@ -682,7 +696,7 @@ function startEdit(cell) {
 async function persistEdit(table, recordId, field, value) {
   if (table === 'country_data') return updateCountryDataField(recordId, field, value);
   if (table === 'profiles')     return updateProfileField(recordId, field, value);
-  if (table === 'feasibility_inputs') return updateFeasibilityField(recordId, field, value);
+  if (table === 'feasibility')  return updateFeasibilityField(recordId, field, value);
   throw new Error(`Unknown table: ${table}`);
 }
 
@@ -730,12 +744,15 @@ function applyLocalUpdate(table, recordId, field, value) {
         }
       }
     }
-  } else if (table === 'feasibility_inputs') {
-    const p = state.profiles.find((x) => x.id === recordId);
-    if (!p || !p.market_analysis.feasibility_inputs) return;
-    const f = p.market_analysis.feasibility_inputs;
-    if (field === 'need_perception') f.need_perception = value;
-    else if (f.delivery_capacity) f.delivery_capacity[field] = value;
+  } else if (table === 'feasibility') {
+    // recordId is the UUID of the row in the feasibility array.
+    for (const p of state.profiles) {
+      const r = (p.market_analysis?.feasibility || []).find((x) => x.id === recordId);
+      if (r) {
+        r[field] = value;
+        return;
+      }
+    }
   }
 }
 
@@ -800,26 +817,48 @@ function drawSelectedProfile(id) {
 }
 
 function feasibilityBreakdownHtml(p) {
-  const f = p.market_analysis?.feasibility_inputs;
-  if (!f) return '<p class="muted">No feasibility inputs.</p>';
-  const dc = f.delivery_capacity || {};
-  const cell = (field, value) =>
-    `<span ${ed('feasibility_inputs', p.id, field, 'number-1-10', value)}>${value ?? '—'}</span>`;
-  const items = [
-    ['Need perception', cell('need_perception', f.need_perception)],
-    ['HW gap (raw; inverted in scoring)', cell('hw_gap', dc.hw_gap)],
-    ['Similar clients exist', cell('similar_clients_exist', dc.similar_clients_exist)],
-    ['BMS penetration effect (raw; sign by mode)', cell('bms_penetration_effect', dc.bms_penetration_effect)],
-    ['Sustainment upside', cell('sustainment_upside', dc.sustainment_upside)],
-  ];
+  const rows = p.market_analysis?.feasibility || [];
+  if (rows.length === 0) return '<p class="muted">No feasibility inputs.</p>';
+
+  const COUNTRY_LABEL = { CL: 'Chile', MX: 'Mexico', US: 'United States' };
+  const INPUT_LABELS = {
+    need_perception: 'Need perception',
+    hw_gap: 'HW gap',
+    similar_clients_exist: 'Similar clients exist',
+    bms_penetration_effect: 'BMS penetration effect',
+    sustainment_upside: 'Sustainment upside',
+  };
+
+  const rowFor = (country, type) =>
+    rows.find((r) => r.country_code === country && r.project_type === type);
+
+  const card = (country, type) => {
+    const r = rowFor(country, type);
+    if (!r) {
+      return `<div class="feas-card"><h4>${COUNTRY_LABEL[country]} — ${type}</h4><p class="muted small">(no row)</p></div>`;
+    }
+    const inputCell = (field) =>
+      `<span class="editable-text" ${ed('feasibility', r.id, field, 'number-1-10', r[field])}>${r[field] ?? '—'}</span>`;
+    return `
+      <div class="feas-card">
+        <h4>${COUNTRY_LABEL[country]} <span class="muted small">— ${type}</span></h4>
+        <dl class="kv compact">
+          ${Object.entries(INPUT_LABELS).map(([k, label]) =>
+            `<dt>${label}</dt><dd class="mono">${inputCell(k)}</dd>`
+          ).join('')}
+        </dl>
+      </div>
+    `;
+  };
+
   return `
-    <table class="scoring-table compact">
-      <tbody>
-        ${items.map(([k, v]) => `
-          <tr><td>${k}</td><td class="mono right">${v}</td></tr>
-        `).join('')}
-      </tbody>
-    </table>
+    <p class="muted small">Each input is 1–10 per country × project type. The composite Feasibility score above uses these as inputs (with hw_gap inverted and bms_penetration_effect sign-flipped per mode). Edit any cell directly.</p>
+    <div class="feas-grid">
+      ${['CL', 'MX', 'US'].map((c) => `
+        ${card(c, 'implementation')}
+        ${card(c, 'subscription')}
+      `).join('')}
+    </div>
   `;
 }
 

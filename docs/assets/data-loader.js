@@ -103,7 +103,7 @@ async function loadFromSupabase(client) {
   const [profilesRes, countryDataRes, feasRes] = await Promise.all([
     client.from('profiles').select('*'),
     client.from('country_data').select('*'),
-    client.from('feasibility_inputs').select('*'),
+    client.from('feasibility').select('*'),
   ]);
   if (profilesRes.error) throw profilesRes.error;
   if (countryDataRes.error) throw countryDataRes.error;
@@ -114,12 +114,17 @@ async function loadFromSupabase(client) {
     cdByProfile[row.profile_id] = cdByProfile[row.profile_id] || {};
     cdByProfile[row.profile_id][row.country_code] = row;
   }
-  const feasByProfile = Object.fromEntries(feasRes.data.map((r) => [r.profile_id, r]));
+  // Group feasibility rows by profile_id (up to 6 per profile)
+  const feasByProfile = {};
+  for (const row of feasRes.data) {
+    feasByProfile[row.profile_id] = feasByProfile[row.profile_id] || [];
+    feasByProfile[row.profile_id].push(row);
+  }
 
-  return profilesRes.data.map((row) => assembleProfile(row, cdByProfile[row.id] || {}, feasByProfile[row.id]));
+  return profilesRes.data.map((row) => assembleProfile(row, cdByProfile[row.id] || {}, feasByProfile[row.id] || []));
 }
 
-function assembleProfile(row, countryRows, feasRow) {
+function assembleProfile(row, countryRows, feasRows) {
   const byCountry = {};
   for (const code of ['CL', 'MX', 'US']) {
     const c = countryRows[code];
@@ -170,15 +175,18 @@ function assembleProfile(row, countryRows, feasRow) {
       },
       pain_points: row.pain_points || [],
       by_country: byCountry,
-      feasibility_inputs: feasRow ? {
-        need_perception: feasRow.need_perception,
-        delivery_capacity: {
-          hw_gap: feasRow.hw_gap,
-          similar_clients_exist: feasRow.similar_clients_exist,
-          bms_penetration_effect: feasRow.bms_penetration_effect,
-          sustainment_upside: feasRow.sustainment_upside,
-        },
-      } : null,
+      // Array of up to 6 feasibility rows (3 countries × 2 project types).
+      // Each row has: id, country_code, project_type, 5 input fields.
+      feasibility: feasRows.map((r) => ({
+        id: r.id,
+        country_code: r.country_code,
+        project_type: r.project_type,
+        need_perception: r.need_perception,
+        hw_gap: r.hw_gap,
+        similar_clients_exist: r.similar_clients_exist,
+        bms_penetration_effect: r.bms_penetration_effect,
+        sustainment_upside: r.sustainment_upside,
+      })),
     },
   };
 }
@@ -264,13 +272,13 @@ export async function updateProfileField(profileId, fieldName, newValue) {
   return data;
 }
 
-export async function updateFeasibilityField(profileId, fieldName, newValue) {
+export async function updateFeasibilityField(rowId, fieldName, newValue) {
   const client = await getSupabaseClient();
   if (!client) throw new Error('Supabase client unavailable');
   const update = { [fieldName]: newValue };
-  const { data, error } = await client.from('feasibility_inputs').update(update).eq('profile_id', profileId).select().single();
+  const { data, error } = await client.from('feasibility').update(update).eq('id', rowId).select().single();
   if (error) throw error;
-  await logAudit('feasibility_inputs', profileId, fieldName, null, newValue);
+  await logAudit('feasibility', rowId, fieldName, null, newValue);
   return data;
 }
 

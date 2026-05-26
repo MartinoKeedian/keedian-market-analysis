@@ -80,22 +80,43 @@ function scaleTo1to10(fraction01) {
 }
 
 // -------------------------- Feasibility (1–10) --------------------------
+//
+// Inputs now vary by (country, project_type). Storage shape on the profile:
+//   profile.market_analysis.feasibility = [
+//     { id, country_code, project_type, need_perception, hw_gap,
+//       similar_clients_exist, bms_penetration_effect, sustainment_upside },
+//     ... (up to 6 rows per profile: 3 countries × 2 types)
+//   ]
+// Selecting the right slice and averaging is the scoring's job here.
 
-export function computeFeasibility(profile, mode, scoring) {
-  const f = profile.market_analysis?.feasibility_inputs;
-  if (!f) return null;
+export function computeFeasibility(profile, mode, country, scoring) {
+  const rows = profile.market_analysis?.feasibility;
+  if (!rows || rows.length === 0) return null;
+
+  // Filter by country
+  let slice = country === 'all' ? rows : rows.filter((r) => r.country_code === country);
+  // Filter by mode: full uses both impl + sub rows; the other two restrict.
+  if (mode === 'implementation_only') slice = slice.filter((r) => r.project_type === 'implementation');
+  else if (mode === 'subscription_only') slice = slice.filter((r) => r.project_type === 'subscription');
+  if (slice.length === 0) return null;
+
+  const avg = (field) => {
+    const vals = slice.map((r) => r[field]).filter((v) => v !== null && v !== undefined);
+    if (vals.length === 0) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  };
 
   const inputs = {
-    need_perception: f.need_perception,
-    hw_gap: invertIfNeeded(f.delivery_capacity?.hw_gap, scoring.feasibility.hw_gap?.invert),
-    similar_clients_exist: f.delivery_capacity?.similar_clients_exist,
+    need_perception: avg('need_perception'),
+    hw_gap: invertIfNeeded(avg('hw_gap'), scoring.feasibility.hw_gap?.invert),
+    similar_clients_exist: avg('similar_clients_exist'),
     bms_penetration_effect: applyBmsSign(
-      f.delivery_capacity?.bms_penetration_effect,
+      avg('bms_penetration_effect'),
       mode,
       scoring.feasibility.bms_penetration_effect?.by_mode,
       profile
     ),
-    sustainment_upside: f.delivery_capacity?.sustainment_upside,
+    sustainment_upside: avg('sustainment_upside'),
   };
 
   const weights = scoring.feasibility.weights;
@@ -108,6 +129,28 @@ export function computeFeasibility(profile, mode, scoring) {
   }
   if (weightTotal === 0) return null;
   return clamp1to10(total / weightTotal);
+}
+
+// Per-country averaged inputs (used by the master table feasibility columns).
+// Returns { need_perception, hw_gap, similar_clients_exist, bms_penetration_effect, sustainment_upside }
+// averaged over (impl + sub) rows of the given country.
+export function feasibilityInputsForCountry(profile, country) {
+  const rows = profile.market_analysis?.feasibility;
+  if (!rows || rows.length === 0) return {};
+  let slice = country === 'all' ? rows : rows.filter((r) => r.country_code === country);
+  if (slice.length === 0) return {};
+  const avg = (field) => {
+    const vals = slice.map((r) => r[field]).filter((v) => v !== null && v !== undefined);
+    if (vals.length === 0) return null;
+    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10;
+  };
+  return {
+    need_perception: avg('need_perception'),
+    hw_gap: avg('hw_gap'),
+    similar_clients_exist: avg('similar_clients_exist'),
+    bms_penetration_effect: avg('bms_penetration_effect'),
+    sustainment_upside: avg('sustainment_upside'),
+  };
 }
 
 function invertIfNeeded(value, invert) {
