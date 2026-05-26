@@ -20,10 +20,12 @@ import {
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const KP_BASE = 'https://roiams.github.io/KeedianProductization';
 
-let state = null;          // { scoring, profiles, countries, kpAvailable }
-let lastRows = null;       // last computed scored rows (for selection lookup)
-let selectedId = null;     // id of currently selected profile
-let activeQuadrant = null; // which quadrant tab is open
+let state = null;             // { scoring, profiles, countries, kpAvailable }
+let rowsByCountry = {};       // { all: [...], US: [...], MX: [...], CL: [...] }
+let axesByCountry = {};       // { all: {...}, US: {...}, MX: {...}, CL: {...} }
+let selectedId = null;        // id of currently selected profile
+let selectedCountry = 'all';  // which country view shows in the drill-down
+let activeQuadrant = null;    // legacy (quadrant tabs removed)
 
 document.addEventListener('DOMContentLoaded', async () => {
   const statusEl = document.getElementById('status-msg');
@@ -61,15 +63,14 @@ function currentFilters() {
 }
 
 function render() {
-  const { country, mode } = currentFilters();
-  lastRows = scoreAllProfiles('all', mode);
-  const axes = computeAxes(lastRows, state.scoring);
-  drawScatter(lastRows, axes);
-  // 4 tables: All, US, MX, CL. Scoring is global; per-country values change.
-  drawMasterTable(lastRows, axes, 'all', mode, 'master-table-all', 'totals-all');
-  drawMasterTable(lastRows, axes, 'US', mode, 'master-table-US', 'totals-US');
-  drawMasterTable(lastRows, axes, 'MX', mode, 'master-table-MX', 'totals-MX');
-  drawMasterTable(lastRows, axes, 'CL', mode, 'master-table-CL', 'totals-CL');
+  const { mode } = currentFilters();
+  // Compute per-country rows and axes once, then draw scatter + table per country.
+  for (const country of ['all', 'US', 'MX', 'CL']) {
+    rowsByCountry[country] = scoreAllProfiles(country, mode);
+    axesByCountry[country] = computeAxes(rowsByCountry[country], state.scoring);
+    drawScatter(rowsByCountry[country], axesByCountry[country], `scatter-${country}`, `legend-${country}`, country);
+    drawMasterTable(rowsByCountry[country], axesByCountry[country], country, mode, `master-table-${country}`, `totals-${country}`);
+  }
   if (selectedId) drawSelectedProfile(selectedId);
 }
 
@@ -138,13 +139,14 @@ function median(arr) {
 
 // -------------------------- Scatter drawing --------------------------
 
-function drawScatter(rows, axes) {
-  const svg = document.getElementById('matrix-svg');
+function drawScatter(rows, axes, svgId, legendId, country) {
+  const svg = document.getElementById(svgId || 'scatter-all');
+  if (!svg) return;
   svg.innerHTML = '';
 
-  const W = 1200;
-  const H = 700;
-  const M = { top: 30, right: 180, bottom: 50, left: 60 };
+  const W = 1100;
+  const H = 540;
+  const M = { top: 30, right: 160, bottom: 50, left: 60 };
   const innerW = W - M.left - M.right;
   const innerH = H - M.top - M.bottom;
 
@@ -241,7 +243,7 @@ function drawScatter(rows, axes) {
     const isSelected = row.profile.id === selectedId;
     g.setAttribute('class', `dot ${getProfileStatus(row.profile)}${isSelected ? ' selected' : ''}`);
     g.style.cursor = 'pointer';
-    g.addEventListener('click', () => selectProfile(row.profile.id));
+    g.addEventListener('click', () => selectProfile(row.profile.id, country || 'all'));
 
     const circle = document.createElementNS(SVG_NS, 'circle');
     circle.setAttribute('cx', x); circle.setAttribute('cy', y);
@@ -270,7 +272,7 @@ function drawScatter(rows, axes) {
     svg.appendChild(g);
   }
 
-  drawLegend(rows);
+  drawLegend(rows, legendId);
 }
 
 function enumerateTicks(min, max) {
@@ -286,8 +288,9 @@ function formatTick(v) {
   return Number.isInteger(v) ? v.toString() : v.toFixed(1);
 }
 
-function drawLegend(rows) {
-  const legend = document.getElementById('matrix-legend');
+function drawLegend(rows, legendId) {
+  const legend = document.getElementById(legendId || 'matrix-legend');
+  if (!legend) return;
   const withData = rows.filter((r) => r.hasData).length;
   const withoutData = rows.length - withData;
   legend.innerHTML = `
@@ -411,7 +414,7 @@ function drawMasterTable(rows, axes, country, mode, containerId, totalsId) {
   `;
 
   sectionEl.querySelectorAll('tr.data-row').forEach((trEl) => {
-    trEl.addEventListener('click', () => selectProfile(trEl.dataset.id));
+    trEl.addEventListener('click', () => selectProfile(trEl.dataset.id, country));
   });
   sectionEl.querySelectorAll('.expand-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
@@ -773,8 +776,9 @@ function applyLocalUpdate(table, recordId, field, value) {
 
 // -------------------------- Inline selected-profile panel --------------------------
 
-function selectProfile(id) {
+function selectProfile(id, country) {
   selectedId = id;
+  if (country) selectedCountry = country;
   render();
   drawSelectedProfile(id);
   const el = document.getElementById('selected-profile');
@@ -782,7 +786,10 @@ function selectProfile(id) {
 }
 
 function drawSelectedProfile(id) {
-  const row = lastRows.find((r) => r.profile.id === id);
+  // Find the row in the currently-selected country's data (matches the table the
+  // user clicked from); fall back to 'all' if the profile isn't in the chosen view.
+  let row = (rowsByCountry[selectedCountry] || []).find((r) => r.profile.id === id);
+  if (!row) row = (rowsByCountry.all || []).find((r) => r.profile.id === id);
   if (!row) return;
   const p = row.profile;
   const el = document.getElementById('selected-profile');
@@ -792,6 +799,11 @@ function drawSelectedProfile(id) {
   const kpLink = isProfileInKP(p)
     ? `<a href="${KP_BASE}/${p.kp_segment_id}/" target="_blank" rel="noopener">↗ View in productization</a>`
     : '<span class="muted">Not in productization yet — market-analysis only.</span>';
+
+  const COUNTRY_LABEL = { all: 'All (sum)', US: 'United States', MX: 'Mexico', CL: 'Chile' };
+  const countryPills = ['US', 'MX', 'CL', 'all'].map((c) => `
+    <button class="country-pill ${c === selectedCountry ? 'active' : ''}" data-country="${c}">${COUNTRY_LABEL[c]}</button>
+  `).join('');
 
   el.innerHTML = `
     <div class="selected-header">
@@ -803,22 +815,27 @@ function drawSelectedProfile(id) {
       <button class="btn-secondary" onclick="document.getElementById('selected-profile').hidden = true">Close</button>
     </div>
 
+    <div class="country-pill-group" id="drill-country-pills">
+      <span class="muted small">Showing data for:</span>
+      ${countryPills}
+    </div>
+
     <div class="selected-grid">
       <section>
-        <h3>Scoring used</h3>
+        <h3>Scoring · ${COUNTRY_LABEL[selectedCountry]}</h3>
         <dl class="kv compact">
           <dt>Impact (USD, current filters)</dt><dd class="mono">${fmtUsd(row.impactUsd)}</dd>
-          <dt>Impact (1–10)</dt><dd class="mono">${row.impact10.toFixed(1)}</dd>
+          <dt>Impact (1–10)</dt><dd class="mono">${row.impact10 != null ? row.impact10.toFixed(1) : '—'}</dd>
           <dt>Feasibility (1–10)</dt><dd class="mono">${row.feasibility10 != null ? row.feasibility10.toFixed(1) : '—'}</dd>
         </dl>
-        <h4>Feasibility breakdown</h4>
-        ${feasibilityBreakdownHtml(p)}
+        <h4>Feasibility breakdown · ${COUNTRY_LABEL[selectedCountry]}</h4>
+        ${feasibilityBreakdownHtml(p, selectedCountry)}
         <p class="small muted"><a href="./criteria.html">What do these criteria mean? →</a></p>
       </section>
 
       <section>
-        <h3>Market analysis</h3>
-        ${marketBlockHtml(p)}
+        <h3>Market analysis · ${COUNTRY_LABEL[selectedCountry]}</h3>
+        ${marketBlockHtml(p, selectedCountry)}
       </section>
     </div>
 
@@ -829,9 +846,17 @@ function drawSelectedProfile(id) {
       </section>
     ` : ''}
   `;
+
+  // Country pills wire-up
+  el.querySelectorAll('.country-pill').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedCountry = btn.dataset.country;
+      drawSelectedProfile(id);
+    });
+  });
 }
 
-function feasibilityBreakdownHtml(p) {
+function feasibilityBreakdownHtml(p, countryFilter) {
   const rows = p.market_analysis?.feasibility || [];
   if (rows.length === 0) return '<p class="muted">No feasibility inputs.</p>';
 
@@ -866,10 +891,11 @@ function feasibilityBreakdownHtml(p) {
     `;
   };
 
+  const countriesToShow = countryFilter && countryFilter !== 'all' ? [countryFilter] : ['CL', 'MX', 'US'];
   return `
-    <p class="muted small">Each input is 1–10 per country × project type. The composite Feasibility score above uses these as inputs (with hw_gap inverted and bms_penetration_effect sign-flipped per mode). Edit any cell directly.</p>
+    <p class="muted small">1–10 per project type. Score above uses these (hw_gap inverted; bms_eff sign-flipped per mode). Edit any cell directly.</p>
     <div class="feas-grid">
-      ${['CL', 'MX', 'US'].map((c) => `
+      ${countriesToShow.map((c) => `
         ${card(c, 'implementation')}
         ${card(c, 'subscription')}
       `).join('')}
@@ -883,7 +909,7 @@ function ed(table, recordId, field, type, value) {
   return `data-editable="true" data-edit-table="${table}" data-edit-record="${recordId}" data-edit-field="${field}" data-edit-type="${type}" data-edit-value="${value == null ? '' : escapeAttr(String(value))}"`;
 }
 
-function marketBlockHtml(p) {
+function marketBlockHtml(p, countryFilter) {
   const m = p.market_analysis || {};
   const pains = m.pain_points || [];
 
@@ -959,15 +985,16 @@ function marketBlockHtml(p) {
     `;
   };
 
+  const COUNTRY_LABEL = { CL: 'Chile', MX: 'Mexico', US: 'United States' };
+  const countriesToShow = countryFilter && countryFilter !== 'all' ? [countryFilter] : ['CL', 'MX', 'US'];
+
   return `
     <h3>Pain points <span class="muted small">(profile-level, one per line when editing)</span></h3>
     ${editPainPoints(pains)}
 
-    <h3>By country <span class="muted small">(brands, BMS, concentration, site size, sites, economics — all per country)</span></h3>
-    <div class="country-grid">
-      ${countryCard('CL', 'Chile')}
-      ${countryCard('MX', 'Mexico')}
-      ${countryCard('US', 'United States')}
+    ${countriesToShow.length === 1 ? '' : '<h3>By country <span class="muted small">(brands, BMS, concentration, site size, sites, economics — all per country)</span></h3>'}
+    <div class="country-grid ${countriesToShow.length === 1 ? 'single-country' : ''}">
+      ${countriesToShow.map((c) => countryCard(c, COUNTRY_LABEL[c])).join('')}
     </div>
   `;
 }

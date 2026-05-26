@@ -53,45 +53,61 @@
         <option value="implementation_only">Implementation only</option>
       </select>
     </label>
-    <span class="muted small">Scoring (Impact 1–10, Feasibility 1–10) is computed globally and consistent across the four tables below.</span>
+    <span class="muted small">Each accordion below contains its country's prioritization scatter and master table. Click a row to drill down.</span>
     <span id="status-msg" class="status-msg"></span>
   </section>
 
-  <section class="matrix-wrap">
-    <svg id="matrix-svg" role="img" aria-label="Impact vs Feasibility scatter"></svg>
-    <div id="matrix-legend" class="matrix-legend"></div>
-  </section>
-
   <section class="master-table-section">
-    <h2>Master tables — by country</h2>
-    <p class="lead">One table per country plus a sum across all three. Same columns, same row order. Click a row to drill down. Hover cells for source rationale. Expand groups via the ▶ buttons in the headers — state is shared across all four tables.</p>
-
     <details open class="country-table-wrap" id="country-wrap-all">
       <summary>
         <span class="country-tab-label">All (sum) <span class="country-tab-sub" id="totals-all"></span></span>
       </summary>
-      <div id="master-table-all"></div>
+      <div class="country-content">
+        <div class="country-scatter-wrap">
+          <svg id="scatter-all" class="country-scatter" role="img" aria-label="All countries scatter"></svg>
+          <div id="legend-all" class="matrix-legend"></div>
+        </div>
+        <div id="master-table-all"></div>
+      </div>
     </details>
 
     <details class="country-table-wrap" id="country-wrap-US">
       <summary>
         <span class="country-tab-label">United States <span class="country-tab-sub" id="totals-US"></span></span>
       </summary>
-      <div id="master-table-US"></div>
+      <div class="country-content">
+        <div class="country-scatter-wrap">
+          <svg id="scatter-US" class="country-scatter" role="img" aria-label="United States scatter"></svg>
+          <div id="legend-US" class="matrix-legend"></div>
+        </div>
+        <div id="master-table-US"></div>
+      </div>
     </details>
 
     <details class="country-table-wrap" id="country-wrap-MX">
       <summary>
         <span class="country-tab-label">Mexico <span class="country-tab-sub" id="totals-MX"></span></span>
       </summary>
-      <div id="master-table-MX"></div>
+      <div class="country-content">
+        <div class="country-scatter-wrap">
+          <svg id="scatter-MX" class="country-scatter" role="img" aria-label="Mexico scatter"></svg>
+          <div id="legend-MX" class="matrix-legend"></div>
+        </div>
+        <div id="master-table-MX"></div>
+      </div>
     </details>
 
     <details class="country-table-wrap" id="country-wrap-CL">
       <summary>
         <span class="country-tab-label">Chile <span class="country-tab-sub" id="totals-CL"></span></span>
       </summary>
-      <div id="master-table-CL"></div>
+      <div class="country-content">
+        <div class="country-scatter-wrap">
+          <svg id="scatter-CL" class="country-scatter" role="img" aria-label="Chile scatter"></svg>
+          <div id="legend-CL" class="matrix-legend"></div>
+        </div>
+        <div id="master-table-CL"></div>
+      </div>
     </details>
   </section>
 
@@ -106,7 +122,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script type="module" src="./assets/matrix.js?v=6"></script>
+<script type="module" src="./assets/matrix.js?v=7"></script>
 <script type="module" src="./assets/auth.js?v=3"></script>
 </body>
 </html>
