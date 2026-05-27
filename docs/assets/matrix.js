@@ -54,20 +54,28 @@ document.addEventListener('kma:auth-changed', () => {
 
 function bindFilters() {
   document.getElementById('mode-filter').addEventListener('change', render);
+  const norm = document.getElementById('norm-filter');
+  if (norm) {
+    // Default the dropdown to whatever scoring.yml says.
+    norm.value = state.scoring.impact.normalization.method || 'quantile';
+    norm.addEventListener('change', render);
+  }
 }
 
 function currentFilters() {
+  const normEl = document.getElementById('norm-filter');
   return {
     country: 'all',
     mode: document.getElementById('mode-filter').value,
+    normMethod: normEl ? normEl.value : (state.scoring.impact.normalization.method || 'quantile'),
   };
 }
 
 function render() {
-  const { mode } = currentFilters();
+  const { mode, normMethod } = currentFilters();
   // Compute per-country rows and axes once, then draw scatter + table per country.
   for (const country of ['all', 'US', 'MX', 'CL']) {
-    rowsByCountry[country] = scoreAllProfiles(country, mode);
+    rowsByCountry[country] = scoreAllProfiles(country, mode, normMethod);
     axesByCountry[country] = computeAxes(rowsByCountry[country], state.scoring);
     drawScatter(rowsByCountry[country], axesByCountry[country], `scatter-${country}`, `legend-${country}`, country);
     drawMasterTable(rowsByCountry[country], axesByCountry[country], country, mode, `master-table-${country}`, `totals-${country}`);
@@ -75,14 +83,14 @@ function render() {
   if (selectedId) drawSelectedProfile(selectedId);
 }
 
-function scoreAllProfiles(country, mode) {
+function scoreAllProfiles(country, mode, normMethod) {
   const impactUsd = {};
   for (const p of state.profiles) {
     impactUsd[p.id] = computeImpactUsd(p, mode, country, state.scoring);
   }
   const impactNorm = normalizeImpactAxis(
     impactUsd,
-    state.scoring.impact.normalization.method
+    normMethod || state.scoring.impact.normalization.method
   );
   return state.profiles.map((p) => {
     const feas = computeFeasibility(p, mode, country, state.scoring);

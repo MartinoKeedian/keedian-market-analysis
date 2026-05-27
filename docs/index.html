@@ -53,6 +53,13 @@
         <option value="implementation_only">Implementation only</option>
       </select>
     </label>
+    <label>Impact scale
+      <select id="norm-filter">
+        <option value="quantile">Quantile (even spread)</option>
+        <option value="log">Logarithmic</option>
+        <option value="linear">Linear (raw)</option>
+      </select>
+    </label>
     <span class="muted small">Each accordion below contains its country's prioritization scatter and master table. Click a row to drill down.</span>
     <span id="status-msg" class="status-msg"></span>
   </section>
@@ -122,7 +129,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script type="module" src="./assets/matrix.js?v=10"></script>
+<script type="module" src="./assets/matrix.js?v=11"></script>
 <script type="module" src="./assets/auth.js?v=6"></script>
 </body>
 </html>
