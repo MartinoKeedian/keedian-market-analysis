@@ -1,0 +1,18 @@
+# Files Vercel should not include in the build
+node_modules/
+.env.local
+.env.local.example
+package-lock.json
+scripts/
+supabase/
+.github/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Source files not deployed
+README.md
+CONTRIBUTING.md
